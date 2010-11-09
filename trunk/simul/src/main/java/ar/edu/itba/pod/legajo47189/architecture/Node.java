@@ -1,11 +1,17 @@
 package ar.edu.itba.pod.legajo47189.architecture;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 
-public class Node {
+public class Node implements Serializable{
+
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -5324801407930003196L;
 
     public static List<String> GetIdList(List<Node> nodes)
     {

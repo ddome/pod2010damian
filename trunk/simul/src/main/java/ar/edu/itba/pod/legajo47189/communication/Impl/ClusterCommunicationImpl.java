@@ -1,30 +1,25 @@
-package ar.edu.itba.pod.legajo47189;
+package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.io.Serializable;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 
 import ar.edu.itba.pod.simul.communication.ClusterCommunication;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageListener;
 
-public class ClusterCommunicationImpl implements ClusterCommunication, Serializable {
+public class ClusterCommunicationImpl implements ClusterCommunication {
 
+    private final MessageListener messageListener;
     
-    // Singleton
-    private static ClusterCommunicationImpl current;
-    static
-    {
-        current = new ClusterCommunicationImpl();
-    }
-    public static ClusterCommunicationImpl getCurrent()
-    {
-        return current;
-    }
-    
-    private static final long serialVersionUID = 2584468691452576509L;    
-    private static final MessageListener messageListener = 
-        new MessageListenerImpl();
-    
+    /**
+     * @throws RemoteException
+     */
+     public ClusterCommunicationImpl() throws RemoteException {
+         UnicastRemoteObject.exportObject(this, 0);
+         messageListener = new MessageListenerImpl();
+     }
+        
     @Override
     public void broadcast(Message message) throws RemoteException {
         // TODO Auto-generated method stub

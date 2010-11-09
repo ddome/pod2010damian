@@ -3,6 +3,7 @@ package ar.edu.itba.pod.legajo47189;
 import java.rmi.registry.LocateRegistry; 
 import java.rmi.registry.Registry;
 
+import ar.edu.itba.pod.legajo47189.communication.Impl.PayloadImpl;
 import ar.edu.itba.pod.simul.communication.Message;
 
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
@@ -28,13 +29,12 @@ public class EchoClient {
 		        
 		        System.setSecurityManager(new java.rmi.RMISecurityManager());
 		    
-			final Registry registry = LocateRegistry.getRegistry(HOST);
-			ConnectionManager stub = (ConnectionManager) registry.lookup("ConnectionManagerService");
+			final Registry registry = LocateRegistry.getRegistry("127.0.0.1", 1099);
+			ConnectionManager stub = (ConnectionManager) registry.lookup("ConnectionService");
 			int response = stub.getClusterPort();
 			
-			MessageListener messageListener = stub.getGroupCommunication().getListener();
-			messageListener.onMessageArrive(new Message("Llego el mensaje chabon amigo", 1, MessageType.DISCONNECT, new PayloadImpl()));
-			
+			MessageListener listener = stub.getGroupCommunication().getListener();
+			listener.onMessageArrive(new Message("pepito", 1, MessageType.DISCONNECT, new PayloadImpl()));
 			System.out.println("response: " + response);
 		}catch (Exception e) {
 			e.printStackTrace();
