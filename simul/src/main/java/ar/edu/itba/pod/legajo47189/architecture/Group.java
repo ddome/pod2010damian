@@ -1,9 +1,15 @@
 package ar.edu.itba.pod.legajo47189.architecture;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Group {
+public class Group implements Serializable {
+
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 8895406076850572303L;
 
     private List<Node> nodes;
     

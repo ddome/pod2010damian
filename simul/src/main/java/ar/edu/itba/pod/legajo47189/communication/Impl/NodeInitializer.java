@@ -1,12 +1,9 @@
-package ar.edu.itba.pod.legajo47189;
+package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
 import ar.edu.itba.pod.legajo47189.architecture.Node;
-import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 
 public class NodeInitializer {
@@ -15,13 +12,7 @@ public class NodeInitializer {
         "/Users/damian/Documents/workspace/RMI/file.policy";
     
     public static final String ClassesPath =
-        "file:/Users/damian/Downloads/simul/target/classes/ar/edu/itba/pod/legajo47189/communication";
-
-    private static Cluster cluster;
-    public static Cluster getCluster()
-    {
-        return cluster;
-    }
+        "file:/Users/damian/Downloads/simul/target/classes/ar/edu/itba/pod/legajo47189/communication/Impl";
     
     private static Node me;
     public static Node getNode()
@@ -30,12 +21,22 @@ public class NodeInitializer {
     }
     
     public static void main(String[] args) {
-        Integer nodeId = null;
-        if (args.length > 1)
+        String nodeId = null;
+        String initialNode = null;
+        Integer port = 1099;
+        if (args.length >= 1)
         {
-            nodeId = Integer.parseInt(args[0]);
+            nodeId = args[0];
         }
-        initialize(nodeId);
+        if (args.length >= 3)
+        {
+            initialNode = args[2];
+        }
+        if (args.length >= 2)
+        {
+            port = Integer.parseInt(args[1]);
+        }
+        initialize(nodeId, initialNode, port);   
     }
     
     private static ConnectionManager connectionManager;
@@ -44,14 +45,24 @@ public class NodeInitializer {
         return connectionManager;
     }
     
-    private static void initialize(Integer initId)
+    private static void initialize(String initId, String initialNode, int port)
     {
-        String id = initId.toString();
+        String id = initId;
         setInitialProperties();
         try {
+            //TODO: Sacar esto!!!!
+            ConnectionManagerImpl.ConnectionPort = port;
             connectionManager = new ConnectionManagerImpl();
-            cluster = new Cluster();
             me = new Node(id, connectionManager);
+            if (initialNode == null)
+            {
+                connectionManager.getClusterAdmimnistration().createGroup();
+            }
+            else
+            {
+                connectionManager.getClusterAdmimnistration().connectToGroup(initialNode);
+            }
+                
         } catch (RemoteException e) {
             e.printStackTrace();
         }

@@ -1,7 +1,14 @@
 package ar.edu.itba.pod.legajo47189.architecture;
 
-public class Cluster {
+import java.io.Serializable;
 
+public class Cluster implements Serializable {
+
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 6318406605911080110L;
+    
     private String clusterId;
     
     public void setClusterId(String clusterId) {

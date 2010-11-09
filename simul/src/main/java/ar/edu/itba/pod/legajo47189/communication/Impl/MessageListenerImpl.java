@@ -1,22 +1,22 @@
-package ar.edu.itba.pod.legajo47189;
+package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.io.Serializable;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageListener;
 
-public class MessageListenerImpl extends Thread implements MessageListener, Serializable {
-
-    private static final long serialVersionUID = 8391665089851882071L;
+public class MessageListenerImpl extends Thread implements MessageListener {
     
     private BlockingQueue<Message> messagesQueue =
         new LinkedBlockingQueue<Message>();
     
-    public MessageListenerImpl()
+    public MessageListenerImpl() throws RemoteException
     {
+        UnicastRemoteObject.exportObject(this, 0);
         new Thread(this).start();
     }
     
@@ -62,7 +62,7 @@ public class MessageListenerImpl extends Thread implements MessageListener, Seri
     
     private void messageProcess(Message message)
     {
-        System.out.println(message.getType());
+        System.out.println(message.toString());
     }
     
 }

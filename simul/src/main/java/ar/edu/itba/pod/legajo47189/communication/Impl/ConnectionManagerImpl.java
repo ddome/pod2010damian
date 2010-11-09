@@ -1,4 +1,4 @@
-package ar.edu.itba.pod.legajo47189;
+package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -6,7 +6,6 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 
-import ar.edu.itba.pod.legajo47189.architecture.Node;
 import ar.edu.itba.pod.simul.communication.ClusterAdministration;
 import ar.edu.itba.pod.simul.communication.ClusterCommunication;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
@@ -16,13 +15,18 @@ import ar.edu.itba.pod.simul.communication.Transactionable;
 
 public class ConnectionManagerImpl implements ConnectionManager {
     
-    public static final int ConnectionPort = 1099;
+    public static int ConnectionPort = 1099;
     public static final String ServiceName = "ConnectionService";
+    private ClusterAdministration clusterAdministration = 
+        new ClusterAdministrationImpl();
+    private ClusterCommunication clusterCommunication = 
+        new ClusterCommunicationImpl();
+    
     
     /**
      * @throws RemoteException
      */
-     protected ConnectionManagerImpl() throws RemoteException {
+     public ConnectionManagerImpl() throws RemoteException {
          UnicastRemoteObject.exportObject(this, 0);
          bindService();
      }
@@ -36,7 +40,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
     @Override
     public ClusterAdministration getClusterAdmimnistration()
             throws RemoteException {
-        return ClusterAdministrationImpl.getCurrent();
+        return clusterAdministration;
     }
 
     @Override
@@ -48,7 +52,11 @@ public class ConnectionManagerImpl implements ConnectionManager {
     public ConnectionManager getConnectionManager(String nodeId)
             throws RemoteException {
         
-        final Registry registry = LocateRegistry.getRegistry(nodeId);
+        //TODO: CAMBIAR ESTA VILLEREADA
+        String host = nodeId.split(":")[0];
+        Integer port = Integer.parseInt(nodeId.split(":")[1]);
+        
+        final Registry registry = LocateRegistry.getRegistry(host, port);
         ConnectionManager stub = null;
         try {
             stub = (ConnectionManager) registry.lookup(ServiceName);
@@ -60,7 +68,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
 
     @Override
     public ClusterCommunication getGroupCommunication() throws RemoteException {
-        return ClusterCommunicationImpl.getCurrent();
+        return clusterCommunication;
     }
 
     @Override
@@ -80,8 +88,5 @@ public class ConnectionManagerImpl implements ConnectionManager {
     public ThreePhaseCommit getThreePhaseCommit() throws RemoteException {
         // TODO Auto-generated method stub
         return null;
-    }
-
-    /* Private */
-    
+    }    
 }
