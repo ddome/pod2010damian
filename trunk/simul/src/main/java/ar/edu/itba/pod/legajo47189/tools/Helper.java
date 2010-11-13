@@ -11,4 +11,11 @@ public class Helper {
         Random generator2 = new Random(milis);
         return generator2.nextInt() + "_" + milis;
     }
+    
+    public static long GetNow()
+    {
+        return Calendar.getInstance().getTimeInMillis();
+    }
+    
+    
 }

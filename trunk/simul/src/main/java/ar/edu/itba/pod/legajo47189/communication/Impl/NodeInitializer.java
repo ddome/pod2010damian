@@ -3,8 +3,10 @@ package ar.edu.itba.pod.legajo47189.communication.Impl;
 import java.rmi.RemoteException;
 
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
-import ar.edu.itba.pod.legajo47189.architecture.Node;
+import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
+import ar.edu.itba.pod.simul.communication.Message;
+import ar.edu.itba.pod.simul.communication.MessageType;
 
 public class NodeInitializer {
     
@@ -14,10 +16,22 @@ public class NodeInitializer {
     public static final String ClassesPath =
         "file:/Users/damian/Downloads/simul/target/classes/ar/edu/itba/pod/legajo47189/communication/Impl";
     
-    private static Node me;
-    public static Node getNode()
+    private static String nodeId;
+    public static String getNodeId()
     {
-        return me;
+        return nodeId;
+    }
+    
+    private static Cluster cluster;
+    public static Cluster getCluster()
+    {
+        return cluster;
+    }
+
+    private static ConnectionManager connectionManager;
+    public static ConnectionManager getConnection()
+    {
+        return connectionManager;
     }
     
     public static void main(String[] args) {
@@ -39,21 +53,17 @@ public class NodeInitializer {
         initialize(nodeId, initialNode, port);   
     }
     
-    private static ConnectionManager connectionManager;
-    public static ConnectionManager getConnection()
-    {
-        return connectionManager;
-    }
-    
     private static void initialize(String initId, String initialNode, int port)
     {
         String id = initId;
         setInitialProperties();
+        cluster = new Cluster();
         try {
             //TODO: Sacar esto!!!!
             ConnectionManagerImpl.ConnectionPort = port;
+            
             connectionManager = new ConnectionManagerImpl();
-            me = new Node(id, connectionManager);
+            NodeInitializer.nodeId = id; 
             if (initialNode == null)
             {
                 connectionManager.getClusterAdmimnistration().createGroup();
@@ -62,6 +72,8 @@ public class NodeInitializer {
             {
                 connectionManager.getClusterAdmimnistration().connectToGroup(initialNode);
             }
+            
+            sendRandomMessages();
                 
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -75,4 +87,24 @@ public class NodeInitializer {
         System.setSecurityManager(new java.rmi.RMISecurityManager());
     }
 
+    private static void sendRandomMessages()
+    {
+        while(true)
+        {
+            try {
+                Thread.currentThread().sleep(5000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            try {
+                System.out.println("Mando!");
+                connectionManager.getGroupCommunication().broadcast(new Message(getNodeId(), Helper.GetNow(), MessageType.DISCONNECT, new PayloadImpl()) );
+            } catch (RemoteException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
 }
