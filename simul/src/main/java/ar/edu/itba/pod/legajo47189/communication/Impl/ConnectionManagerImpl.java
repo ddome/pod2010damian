@@ -22,7 +22,6 @@ public class ConnectionManagerImpl implements ConnectionManager {
     private ClusterCommunication clusterCommunication = 
         new ClusterCommunicationImpl();
     
-    
     /**
      * @throws RemoteException
      */

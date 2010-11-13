@@ -1,6 +1,5 @@
 package ar.edu.itba.pod.legajo47189.communication.Impl;
 
-import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 
@@ -20,7 +19,7 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
          UnicastRemoteObject.exportObject(this, 0);
      }
     
-    private Cluster cluster = new Cluster();
+    private Cluster cluster = NodeInitializer.getCluster();
     
     @Override
     public Iterable<String> addNewNode(String newNode) throws RemoteException {
@@ -43,11 +42,12 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
 
     @Override
     public void connectToGroup(String initialNode) throws RemoteException {
-        Node node = NodeInitializer.getNode();
         ConnectionManager remoteConnection = 
             NodeInitializer.getConnection().getConnectionManager(initialNode);
-        remoteConnection.getClusterAdmimnistration().addNewNode(node.getNodeId());
-        //TODO: recibo los nodos y los guardo
+        remoteConnection.getClusterAdmimnistration().addNewNode(NodeInitializer.getNodeId());
+        String groupId = remoteConnection.getClusterAdmimnistration().getGroupId();
+        cluster.setGroup(new Group(groupId));
+        cluster.getGroup().add(new Node(initialNode, remoteConnection));
     }
 
     @Override
@@ -58,9 +58,9 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
         }
         else
         {
-            Node node = NodeInitializer.getNode();
-            cluster.setGroup(new Group(node.getNodeId()));
-            cluster.getGroup().add(NodeInitializer.getNode());
+            cluster.setGroup(new Group(NodeInitializer.getNodeId()));
+            cluster.getGroup().add(new Node(NodeInitializer.getNodeId(), 
+                    NodeInitializer.getConnection()));
         }
     }
 
