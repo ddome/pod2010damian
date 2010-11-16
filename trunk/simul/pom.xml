@@ -21,7 +21,35 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
+			<plugin>
+		     	<artifactId>maven-assembly-plugin</artifactId>
+		        <configuration>
+		        	<descriptorRefs>
+		            	<descriptorRef>jar-with-dependencies</descriptorRef>
+		          	</descriptorRefs>
+		          	<archive>
+		            	<manifest>
+		              		<mainClass>ar.edu.itba.pod.legajo47189.communication.Impl.NodeInitializer</mainClass>
+		            	</manifest>
+		        	</archive>
+		        </configuration>
+		        <executions>
+		        	<execution>
+			            <id>make-assembly</id>
+			            <phase>package</phase>
+			            <goals>
+			            	<goal>attached</goal>
+			            </goals>
+		          	</execution>
+		        </executions>
+      		</plugin>
 		</plugins>
+		
+		<resources>
+			<resource>
+				<directory>${project.basedir}/resources</directory>
+			</resource>
+      	</resources>
 	</build>
 
 	<properties>
@@ -50,5 +78,11 @@
 			<artifactId>joda-time</artifactId>
 			<version>1.6</version>
 		</dependency>
+		<dependency>
+      		<groupId>log4j</groupId>
+      		<artifactId>log4j</artifactId>
+      		<version>1.2.12</version>
+      		<scope>compile</scope>
+    	</dependency>
 	</dependencies>
 </project>
