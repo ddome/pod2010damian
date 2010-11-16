@@ -49,6 +49,12 @@ public class Node implements Serializable{
         setConnectionManager(connectionManager);
     }
     
+    public Node(String nodeId)
+    {
+        setNodeId(nodeId);
+        setConnectionManager(connectionManager);
+    }
+    
     @Override
     public int hashCode() {
         final int prime = 31;

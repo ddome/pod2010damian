@@ -2,6 +2,7 @@ package ar.edu.itba.pod.legajo47189.architecture;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Group implements Serializable {
@@ -17,7 +18,7 @@ public class Group implements Serializable {
  
     public Group(String groupId)
     {
-        nodes = new ArrayList<Node>();
+        nodes = (List<Node>) Collections.synchronizedList(new ArrayList<Node>());
         this.groupId = groupId;
     }
     
@@ -34,6 +35,14 @@ public class Group implements Serializable {
     public int size()
     {
         return nodes.size();
+    }
+    
+    public void add(Iterable<Node> nodes)
+    {
+        for (Node node : nodes)
+        {
+            this.nodes.add(node);
+        }
     }
     
     public void add(Node node)

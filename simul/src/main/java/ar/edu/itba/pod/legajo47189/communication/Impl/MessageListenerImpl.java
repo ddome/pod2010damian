@@ -10,16 +10,23 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.log4j.Logger;
+
 import ar.edu.itba.pod.legajo47189.tools.Helper;
-import ar.edu.itba.pod.simul.communication.ClusterCommunication;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageListener;
+import ar.edu.itba.pod.simul.communication.MessageType;
+import ar.edu.itba.pod.simul.communication.payload.DisconnectPayload;
+import ar.edu.itba.pod.simul.communication.payload.Payload;
 
 public class MessageListenerImpl extends Thread implements MessageListener {
+    
+    private final static Logger LOGGER = Logger.getLogger(MessageListenerImpl.class);
     
     private BlockingQueue<Message> messagesQueue;
     private List<Message> history;
     private Map<String, Long> requests;
+    private boolean stopFlag = false;
     
     public MessageListenerImpl() throws RemoteException
     {
@@ -33,8 +40,9 @@ public class MessageListenerImpl extends Thread implements MessageListener {
     @Override
     public void run()
     {
+        LOGGER.info("Iniciando el proceso de escucha de mensajes");
         Message message;
-        while(true)
+        while(!stopFlag)
         {
             try {
                 message = messagesQueue.poll();
@@ -47,9 +55,10 @@ public class MessageListenerImpl extends Thread implements MessageListener {
                     messageProcess(message);
                 }                   
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOGGER.info(e.getMessage());
             }
         }
+        LOGGER.info("Finalizado el proceso de escucha de mensajes");
     }
     
     @Override
@@ -57,21 +66,34 @@ public class MessageListenerImpl extends Thread implements MessageListener {
             throws RemoteException {
         
         Long lastSync = requests.get(remoteNodeId);
+        LOGGER.info("Recibido un pedido de nuevos mensajes para el nodo " + remoteNodeId 
+                + ", la ultima sincronizaci—n fue " + lastSync);
         requests.put(remoteNodeId, Helper.GetNow());
-        return history;
+        List<Message> ret = getMessagesSince(lastSync);
+        LOGGER.info("Hay " + ret.size() + " mensajes nuevos para el nodo " + remoteNodeId);
+        return ret;
     }
     
-    private Iterable<Message> getMessagesSince(Long lastSync)
+    private List<Message> getMessagesSince(Long lastSync)
     {
         List<Message> messages = new ArrayList<Message>();
         
         int index = history.size() - 1;
-        Message current = null;
-        while(current.getTimeStamp() > lastSync)
-        { 
-          messages.add(current); 
-          index--;
-          current = history.get(index);
+        if (index < 0)
+        	return messages;
+        
+        Message current = history.get(index);
+        if (current.getTimeStamp() > lastSync)
+        {
+        	history.add(current);
+        }
+        index--;
+        
+        while(current.getTimeStamp() > lastSync && index >= 0)
+        {
+        	current = history.get(index);
+        	messages.add(current); 
+        	index--;
         } 
         return messages;
     }
@@ -82,20 +104,62 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         boolean messageExists = history.contains(message);
         if (!messageExists)
         {
-            history.add(message);
             try {
                 messagesQueue.put(message);
             } catch (InterruptedException e) {
                 throw new RemoteException(e.getMessage());
             }
-            NodeInitializer.getConnection().getGroupCommunication().broadcast(message);
+            if (isBroadcast(message))
+            {
+                history.add(message);
+                LOGGER.info("Se retransmitir‡ el mensaje " + message.getNodeId());
+                NodeInitializer.getConnection().getGroupCommunication().broadcast(message);
+                LOGGER.info("Se retransmiti— exitosamente el mensaje " + message.getNodeId());
+            }
+            
         }
         return messageExists;
     }
     
+    private boolean isBroadcast(Message message)
+    {
+        MessageType type = message.getType();
+        if (type == MessageType.DISCONNECT)
+        {
+            return true;
+        }
+        else if (type == MessageType.NEW_MESSAGE_REQUEST)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    
+    public void endThread()
+    {
+        stopFlag = true;
+    }
+    
     private void messageProcess(Message message) throws InterruptedException
     {
-        System.out.println(message.toString());
-        history.add(message);
+        LOGGER.info("Procesando el mensaje " + message.getNodeId() + " de tipo " + message.getType().toString());
+        
+        if (isBroadcast(message))
+        {
+            history.add(message);
+        }
+        
+        Payload payload = message.getPayload();
+        MessageType type = message.getType();
+        if (type == MessageType.DISCONNECT)
+        {
+            String disconnectedNode = ((DisconnectPayload)payload).getDisconnectedNodeId();
+            LOGGER.info("Se desconectar‡ el nodo " + disconnectedNode + " de mi cluster");
+            NodeInitializer.getCluster().getGroup().remove(disconnectedNode);
+            LOGGER.info("Se desconecto el nodo " + disconnectedNode + " de mi cluster");
+        } 
     }
 }
