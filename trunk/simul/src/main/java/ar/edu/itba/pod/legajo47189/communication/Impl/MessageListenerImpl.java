@@ -42,8 +42,15 @@ public class MessageListenerImpl extends Thread implements MessageListener {
     {
         LOGGER.info("Iniciando el proceso de escucha de mensajes");
         Message message;
+        int milis = 0;
         while(!stopFlag)
         {
+            milis += 100;
+            if (milis == 100000)
+            {
+                history.clear();
+                milis = 0;
+            }
             try {
                 message = messagesQueue.poll();
                 if (message == null)

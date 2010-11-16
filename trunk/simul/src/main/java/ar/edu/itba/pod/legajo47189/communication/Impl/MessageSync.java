@@ -33,9 +33,7 @@ public class MessageSync extends Thread{
             }
             LOGGER.info("Pidiendo mensajes nuevos a nodos conocidos");
             // Agrego uno mas ya que el nodo actual se remueve
-            //Integer number = new Integer((int)(Math.floor(nodes.size()/2) + 1) + 1);
-            //nodes = RandomSelection(nodes, number);
-            //TODO: SELECCIONAR AL AZAR
+            nodes = RandomSelection(nodes);
             nodes.remove(new Node(me));
             
             if (nodes.size() == 0)
@@ -74,22 +72,15 @@ public class MessageSync extends Thread{
         stopFlag = true;
     }
     
-    private List<Node> RandomSelection(List<Node> nodes, Integer number) {
+    private List<Node> RandomSelection(List<Node> nodes) {
         List<Node> randomNodes = new ArrayList<Node>();
-        Integer max =  new Integer(nodes.size());
-        
-        if (number <= 0)
-            return nodes;
-        
-        int pos = 0;
-        while (number > 0 && pos < max)
+        for (Node node : nodes)
         {
-            randomNodes.add(nodes.get(pos));
-            pos++;
-            number--;
+            if (Helper.flipCoin(0.7))
+            {
+                randomNodes.add(node);
+            }
         }
-        
         return randomNodes;
     }
-    
 }
