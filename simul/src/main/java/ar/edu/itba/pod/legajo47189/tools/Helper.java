@@ -44,4 +44,9 @@ public class Helper {
     {
         return Calendar.getInstance().getTimeInMillis();
     }
+    
+    public static boolean flipCoin(double chance)
+    {
+        return Math.random() < chance;
+    }
 }

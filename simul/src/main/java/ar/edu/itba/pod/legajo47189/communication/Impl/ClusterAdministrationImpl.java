@@ -97,14 +97,13 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
         
         List<Node> randomNodes = new ArrayList<Node>();
         List<String> nodes = getNodeList(nodeIds);
-//        List<Integer> sequence = 
-  //          Helper.generateSequence(new Integer((int)(Math.floor(nodes.size()/2) + 1)), 
-    //                new Integer(nodes.size()));
-        //TODO: DEVOLVER UNA SUBLISTA AL AZAR
+        double chance = 0.7;
         for (String id : nodeIds)
         {
-            LOGGER.debug("Agrego el nodo " + id + " a mi cluster");
-            randomNodes.add(new Node(id));
+            if (Helper.flipCoin(chance))
+            {
+                randomNodes.add(new Node(id));
+            }
         }
         return randomNodes;
     }

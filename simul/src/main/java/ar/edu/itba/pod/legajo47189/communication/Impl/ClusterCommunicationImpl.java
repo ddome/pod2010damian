@@ -32,14 +32,11 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
     public void broadcast(Message message) throws RemoteException {
         List<Node> nodes = NodeInitializer.getCluster().getGroup().getNodes();
         String me = NodeInitializer.getNodeId();
-        // Agrego dos mas, ya que el que origino el mensaje y el nodo actual
-        // no se incluyen
-        //Integer number = new Integer((int)(Math.floor(nodes.size()/2) + 1) + 2);
-        //nodes = RandomSelection(nodes, number);
-        //TODO: SELECCIONAR AL AZAR
+        nodes = RandomSelection(nodes);
+        // No me lo mando a mi mismo
         nodes.remove(new Node(me));
+        // No se lo mando al nodo que inicio el mensaje 
         nodes.remove(new Node(message.getNodeId()));
-        
         if (nodes.size() == 0)
         {
             LOGGER.info("No hay nodos para transmitir broadcast");
@@ -59,22 +56,16 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
         }
     }
 
-    private List<Node> RandomSelection(List<Node> nodes, Integer number) {
+    private List<Node> RandomSelection(List<Node> nodes) {
         
         List<Node> randomNodes = new ArrayList<Node>();
-        Integer max =  new Integer(nodes.size());
-        
-        if (number <= 0)
-            return nodes;
-        
-        int pos = 0;
-        while (number > 0 && pos < max)
+        for (Node node : nodes)
         {
-            randomNodes.add(nodes.get(pos));
-            pos++;
-            number--;
+            if (Helper.flipCoin(0.7))
+            {
+              randomNodes.add(node);
+            }
         }
-        
         return randomNodes;
     }
 
