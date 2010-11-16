@@ -2,16 +2,22 @@ package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.log4j.Logger;
 
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
 import ar.edu.itba.pod.legajo47189.architecture.Group;
 import ar.edu.itba.pod.legajo47189.architecture.Node;
+import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ClusterAdministration;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 
 public class ClusterAdministrationImpl implements ClusterAdministration {
 
-
+    private final static Logger LOGGER = Logger.getLogger(ClusterAdministrationImpl.class);
+    
     /**
      * @throws RemoteException
      */
@@ -36,18 +42,20 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
            NodeInitializer.getConnection().getConnectionManager(newNode);
         // Cluster local
         // Agrego el nodo al grupo local
+        Iterable<String> ret = Node.GetIdList(cluster.getGroup().getNodes());
         cluster.getGroup().add( new Node(newNode, manager));
-        return Node.GetIdList(cluster.getGroup().getNodes());
+        return ret;
     }
 
     @Override
     public void connectToGroup(String initialNode) throws RemoteException {
         ConnectionManager remoteConnection = 
             NodeInitializer.getConnection().getConnectionManager(initialNode);
-        remoteConnection.getClusterAdmimnistration().addNewNode(NodeInitializer.getNodeId());
+        Iterable<String> nodeIds = remoteConnection.getClusterAdmimnistration().addNewNode(NodeInitializer.getNodeId());
         String groupId = remoteConnection.getClusterAdmimnistration().getGroupId();
         cluster.setGroup(new Group(groupId));
-        cluster.getGroup().add(new Node(initialNode, remoteConnection));
+        cluster.getGroup().add(new Node(NodeInitializer.getNodeId()));
+        cluster.getGroup().add(randomSelection(nodeIds));
     }
 
     @Override
@@ -83,5 +91,31 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
     public boolean isConnectedToGroup() throws RemoteException {
         return cluster.getGroup() != null;
     }
-
+    
+    
+    private List<Node> randomSelection(Iterable<String> nodeIds) {
+        
+        List<Node> randomNodes = new ArrayList<Node>();
+        List<String> nodes = getNodeList(nodeIds);
+//        List<Integer> sequence = 
+  //          Helper.generateSequence(new Integer((int)(Math.floor(nodes.size()/2) + 1)), 
+    //                new Integer(nodes.size()));
+        //TODO: DEVOLVER UNA SUBLISTA AL AZAR
+        for (String id : nodeIds)
+        {
+            LOGGER.debug("Agrego el nodo " + id + " a mi cluster");
+            randomNodes.add(new Node(id));
+        }
+        return randomNodes;
+    }
+    
+    private List<String> getNodeList(Iterable<String> nodeIds)
+    {
+        List<String> ret = new ArrayList<String>();
+        for (String id : nodeIds)
+        {
+            ret.add(id);
+        }
+        return ret;
+    }
 }
