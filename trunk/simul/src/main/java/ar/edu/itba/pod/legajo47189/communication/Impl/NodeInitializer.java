@@ -78,15 +78,14 @@ public class NodeInitializer {
                 connectionManager.getClusterAdmimnistration().createGroup();
                 LOGGER.info("Grupo creado exitosamente, Vamo' lo pibe!");
             }
-            else
-            {
-                connectionManager.getClusterAdmimnistration().connectToGroup(initialNode);
-                LOGGER.info("Conectado exitosamente al grupo");
-            }
+            //else
+            //{
+             //   connectionManager.getClusterAdmimnistration().connectToGroup(initialNode);
+             //   LOGGER.info("Conectado exitosamente al grupo");
+            //}
             sync = new MessageSync();
             sync.start();
             
-            sendRandomMessages(initialNode == null);
         } catch (RemoteException e) {
             LOGGER.info(e.getMessage());
         }

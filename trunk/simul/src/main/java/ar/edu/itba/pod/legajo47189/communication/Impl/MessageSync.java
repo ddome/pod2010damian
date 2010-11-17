@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
+import ar.edu.itba.pod.legajo47189.architecture.Group;
 import ar.edu.itba.pod.legajo47189.architecture.Node;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
@@ -18,7 +19,20 @@ public class MessageSync extends Thread{
     private boolean stopFlag = false;
     
     public void run()
-    {
+    {        
+        //TODO: SACAR ESTO
+        Group group = NodeInitializer.getCluster().getGroup();
+        while(group ==null)
+        {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            group = NodeInitializer.getCluster().getGroup();
+        }
+        
         List<Node> nodes = NodeInitializer.getCluster().getGroup().getNodes();
         String me = NodeInitializer.getNodeId();
         ConnectionManager connection = null;
