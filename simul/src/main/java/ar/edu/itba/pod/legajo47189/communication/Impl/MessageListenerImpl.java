@@ -49,6 +49,7 @@ public class MessageListenerImpl extends Thread implements MessageListener {
             if (milis == 100000)
             {
                 history.clear();
+                requests.clear();
                 milis = 0;
             }
             try {

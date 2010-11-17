@@ -85,7 +85,7 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
         } catch (RemoteException e) {
             LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido. Se borra el nodo de la cluster");
             NodeInitializer.getCluster().getGroup().remove(nodeId);
-            //TODO: Avisar a la cluster
+            NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(nodeId);
             throw e;
         }
         LOGGER.info("Mensaje " + message.getNodeId() + " al nodo " + nodeId + " enviado correctamente");

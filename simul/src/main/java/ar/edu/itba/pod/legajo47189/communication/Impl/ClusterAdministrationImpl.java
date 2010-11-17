@@ -10,9 +10,12 @@ import org.apache.log4j.Logger;
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
 import ar.edu.itba.pod.legajo47189.architecture.Group;
 import ar.edu.itba.pod.legajo47189.architecture.Node;
+import ar.edu.itba.pod.legajo47189.payload.Impl.DisconnectPayloadImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ClusterAdministration;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
+import ar.edu.itba.pod.simul.communication.Message;
+import ar.edu.itba.pod.simul.communication.MessageType;
 
 public class ClusterAdministrationImpl implements ClusterAdministration {
 
@@ -74,8 +77,13 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
 
     @Override
     public void disconnectFromGroup(String nodeId) throws RemoteException {
+        LOGGER.debug("Mando broadcast para desconectarme del grupo");
+        NodeInitializer.getConnection().getGroupCommunication()
+            .broadcast(new Message(NodeInitializer.getNodeId(), 
+                    Helper.GetNow(), 
+                    MessageType.DISCONNECT, 
+                    new DisconnectPayloadImpl(nodeId)));
         cluster.setGroup(null);
-        //TODO: AVISAR AL grupo
     }
 
     @Override
@@ -91,7 +99,6 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
     public boolean isConnectedToGroup() throws RemoteException {
         return cluster.getGroup() != null;
     }
-    
     
     private List<Node> randomSelection(Iterable<String> nodeIds) {
         
