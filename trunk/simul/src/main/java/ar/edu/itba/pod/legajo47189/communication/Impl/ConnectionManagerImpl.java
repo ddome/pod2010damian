@@ -21,6 +21,10 @@ public class ConnectionManagerImpl implements ConnectionManager {
         new ClusterAdministrationImpl();
     private ClusterCommunication clusterCommunication = 
         new ClusterCommunicationImpl();
+    private TransactionableImpl transaction = 
+        new TransactionableImpl();
+    private SimulationCommunicationImpl simulation = 
+        new SimulationCommunicationImpl();
     
     /**
      * @throws RemoteException
@@ -51,6 +55,11 @@ public class ConnectionManagerImpl implements ConnectionManager {
     public ConnectionManager getConnectionManager(String nodeId)
             throws RemoteException {
         
+    	if (nodeId.equals(NodeInitializer.getNodeId()))
+    	{
+    		return this;
+    	}
+    	
         //TODO: CAMBIAR ESTA VILLEREADA
         String host = nodeId.split(":")[0];
         Integer port = Integer.parseInt(nodeId.split(":")[1]);
@@ -72,15 +81,13 @@ public class ConnectionManagerImpl implements ConnectionManager {
 
     @Override
     public Transactionable getNodeCommunication() throws RemoteException {
-        // TODO Auto-generated method stub
-        return null;
+        return transaction;
     }
 
     @Override
     public SimulationCommunication getSimulationCommunication()
             throws RemoteException {
-        // TODO Auto-generated method stub
-        return null;
+        return simulation;
     }
 
     @Override

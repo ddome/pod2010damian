@@ -20,58 +20,35 @@ public class MessageSync extends Thread{
     
     public void run()
     {        
-        //TODO: SACAR ESTO
-        Group group = NodeInitializer.getCluster().getGroup();
-        while(group ==null)
-        {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            group = NodeInitializer.getCluster().getGroup();
-        }
-        
-        List<Node> nodes = NodeInitializer.getCluster().getGroup().getNodes();
         String me = NodeInitializer.getNodeId();
         ConnectionManager connection = null;
         Iterable<Message> messages = null;
+        List<Node> nodes = null;
         
         while(!stopFlag)
         {
             try {
-                Thread.sleep(15000);
+                Thread.sleep(1000);
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             }
-            LOGGER.info("Pidiendo mensajes nuevos a nodos conocidos");
+            
+            nodes = waitForGroup();
+           
             // Agrego uno mas ya que el nodo actual se remueve
             nodes = RandomSelection(nodes);
             nodes.remove(new Node(me));
             
-            if (nodes.size() == 0)
-            {
-                LOGGER.info("No hay nodos registrados para pedir mensajes nuevos");
-            }
-            
             for (Node node : nodes)
             {
-                LOGGER.info("Pido mensajes al nodo " + node.getNodeId());
                 try {
                     connection = NodeInitializer.getConnection().getConnectionManager(node.getNodeId());
                     messages = connection.getGroupCommunication().getListener().getNewMessages(me);       
-                    
-                    if (!messages.iterator().hasNext())
-                    {
-                        LOGGER.info("No hay mensajes nuevos del nodo " + node.getNodeId());
-                    }
                     
                     for (Message message : messages)
                     {
                         NodeInitializer.getConnection().getGroupCommunication().getListener().onMessageArrive(message);
                     }
-                    LOGGER.info("Se terminaron de procesar los mensajes nuevos del nodo " + node.getNodeId());
                 } catch (RemoteException e) {
                     NodeInitializer.getCluster().getGroup().remove(node.getNodeId());
                     //TODO: Avisar a la cluster
@@ -81,6 +58,21 @@ public class MessageSync extends Thread{
         }
     }
     
+    public List<Node> waitForGroup()
+    {
+        Group group;
+        do
+        {
+            group = NodeInitializer.getCluster().getGroup();
+            try {
+            	if (group == null) Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } while (group == null);
+        return group.getNodes();
+    }
+    
     public void endThread()
     {
         stopFlag = true;
@@ -88,9 +80,10 @@ public class MessageSync extends Thread{
     
     private List<Node> RandomSelection(List<Node> nodes) {
         List<Node> randomNodes = new ArrayList<Node>();
+         
         for (Node node : nodes)
         {
-            if (Helper.flipCoin(0.7))
+            if (Helper.flipCoin(nodes.size()))
             {
                 randomNodes.add(node);
             }

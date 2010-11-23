@@ -1,17 +1,21 @@
 package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
 import ar.edu.itba.pod.legajo47189.payload.Impl.DisconnectPayloadImpl;
+import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationManagerImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageType;
-import ar.edu.itba.pod.simul.communication.payload.DisconnectPayload;
+import ar.edu.itba.pod.simul.simulation.SimulationManager;
 
 public class NodeInitializer {
     
@@ -36,6 +40,24 @@ public class NodeInitializer {
     {
         return cluster;
     }
+    
+    private static SimulationManagerImpl simulationManager;
+    public static SimulationManagerImpl getSimulationManager()
+    {
+        return simulationManager;
+    }
+    
+    private static String coordinator;
+    public static String getCoordinator()
+    {
+        return coordinator;
+    }
+    public static void setCoordinator(String coordinator)
+    {
+        NodeInitializer.coordinator = coordinator;
+    }
+    
+    public static List<Message> history;
 
     private static ConnectionManager connectionManager;
     public static ConnectionManager getConnection()
@@ -66,8 +88,13 @@ public class NodeInitializer {
     {
         String id = initId;
         setInitialProperties();
+        history = Collections.synchronizedList(new ArrayList<Message>());
         cluster = new Cluster();
-        LOGGER.info("Enhorabuena, el cluster ha sido creado exitosamente");
+        try {
+            simulationManager = new SimulationManagerImpl(initId);
+        } catch (RemoteException e1) {
+            LOGGER.info(e1);
+        }
         try {
             //TODO: Sacar esto!!!!
             ConnectionManagerImpl.ConnectionPort = port;
@@ -78,17 +105,14 @@ public class NodeInitializer {
                 connectionManager.getClusterAdmimnistration().createGroup();
                 LOGGER.info("Grupo creado exitosamente, Vamo' lo pibe!");
             }
-            //else
-            //{
-             //   connectionManager.getClusterAdmimnistration().connectToGroup(initialNode);
-             //   LOGGER.info("Conectado exitosamente al grupo");
-            //}
             sync = new MessageSync();
             sync.start();
             
         } catch (RemoteException e) {
             LOGGER.info(e.getMessage());
         }
+        
+        LOGGER.info("Iniciado el nodo " + id);
     }
     
     private static void setInitialProperties()

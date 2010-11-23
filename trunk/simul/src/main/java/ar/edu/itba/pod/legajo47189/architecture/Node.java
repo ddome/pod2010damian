@@ -33,6 +33,8 @@ public class Node implements Serializable{
         return nodeId;
     }
     
+    private int NumberOfAgents;
+    
     private ConnectionManager connectionManager;
     
     public void setConnectionManager(ConnectionManager connectionManager) {
@@ -45,12 +47,14 @@ public class Node implements Serializable{
     
     public Node(String nodeId, ConnectionManager connectionManager)
     {
+        setNumberOfAgents(0);
         setNodeId(nodeId);
         setConnectionManager(connectionManager);
     }
     
     public Node(String nodeId)
     {
+        setNumberOfAgents(0);
         setNodeId(nodeId);
         setConnectionManager(connectionManager);
     }
@@ -78,5 +82,13 @@ public class Node implements Serializable{
         } else if (!nodeId.equals(other.nodeId))
             return false;
         return true;
+    }
+
+    public void setNumberOfAgents(int numberOfAgents) {
+        NumberOfAgents = numberOfAgents;
+    }
+
+    public int getNumberOfAgents() {
+        return NumberOfAgents;
     }
 }

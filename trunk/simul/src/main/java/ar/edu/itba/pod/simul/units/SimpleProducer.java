@@ -45,9 +45,10 @@ public class SimpleProducer extends MarketAgent implements ResourceStock {
 	public void run() {
 		while(!shouldFinish()) {
 			try {
-				waitForWork();
-				amount.getAndAdd(rate());
-				market().offerMore(this, rate());
+				//waitForWork();
+				Thread.sleep(1000);
+				//amount.getAndAdd(rate());
+				//market().offerMore(this, rate());
 			} catch (InterruptedException e) {
 				// this should happen when finishing
 			}

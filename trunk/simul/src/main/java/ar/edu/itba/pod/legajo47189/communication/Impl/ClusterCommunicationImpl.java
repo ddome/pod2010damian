@@ -32,28 +32,37 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
     public void broadcast(Message message) throws RemoteException {
         List<Node> nodes = NodeInitializer.getCluster().getGroup().getNodes();
         String me = NodeInitializer.getNodeId();
-        nodes = RandomSelection(nodes);
-        // No me lo mando a mi mismo
-        nodes.remove(new Node(me));
-        // No se lo mando al nodo que inicio el mensaje 
-        nodes.remove(new Node(message.getNodeId()));
-        if (nodes.size() == 0)
+        boolean flag = false;
+        boolean ret;
+        NodeInitializer.history.add(message);
+        while(!flag)
         {
-            LOGGER.info("No hay nodos para transmitir broadcast");
-        }
-        else
-        {
-            LOGGER.info("Inicio un broadcast a " + nodes.size() + " nodos");
-        }
-        
-        for (Node node : nodes)
-        {
-            if (!node.getNodeId().equals(message.getNodeId()) )
+            nodes = RandomSelection(nodes);
+            // No me lo mando a mi mismo
+            nodes.remove(new Node(me));
+            // No se lo mando al nodo que inicio el mensaje 
+            nodes.remove(new Node(message.getNodeId()));
+            if (nodes.size() == 0)
             {
-                send(message, node.getNodeId());
+                LOGGER.info("No hay nodos para transmitir broadcast");
+                flag = true;
             }
-            LOGGER.info("Broadcast finalizado exitosamente");
+            else
+            {
+                LOGGER.info("Inicio un broadcast a " + nodes.size() + " nodos");
+            }
+            
+            for (Node node : nodes)
+            {
+                if (!node.getNodeId().equals(message.getNodeId()) 
+                        && !message.getNodeId().equals(node.getNodeId()))
+                {
+                    ret = send(message, node.getNodeId());
+                    if (ret) flag = true;
+                }
+            }
         }
+        LOGGER.info("Broadcast finalizado exitosamente");
     }
 
     private List<Node> RandomSelection(List<Node> nodes) {
@@ -61,7 +70,7 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
         List<Node> randomNodes = new ArrayList<Node>();
         for (Node node : nodes)
         {
-            if (Helper.flipCoin(0.7))
+            if (Helper.flipCoin(nodes.size()))
             {
               randomNodes.add(node);
             }
@@ -84,7 +93,6 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
             ret = manager.getGroupCommunication().getListener().onMessageArrive(message);
         } catch (RemoteException e) {
             LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido. Se borra el nodo de la cluster");
-            NodeInitializer.getCluster().getGroup().remove(nodeId);
             NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(nodeId);
             throw e;
         }
