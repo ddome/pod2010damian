@@ -33,7 +33,7 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
     @Override
     public Iterable<String> addNewNode(String newNode) throws RemoteException {
         
-        System.out.println("Un guachin me pidio conectarse");
+        LOGGER.info("Se recibio un pedido de conexion del nodo " + newNode);
         
         // Chequeo si esta conectado a un grupo
         if (!isConnectedToGroup())
@@ -46,19 +46,25 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
         // Cluster local
         // Agrego el nodo al grupo local
         Iterable<String> ret = Node.GetIdList(cluster.getGroup().getNodes());
-        cluster.getGroup().add( new Node(newNode, manager));
+        cluster.getGroup().add(new Node(newNode, manager));
+        
         return ret;
     }
 
     @Override
     public void connectToGroup(String initialNode) throws RemoteException {
+        
+        LOGGER.info("Me conecto al grupo a traves de " + initialNode);
         ConnectionManager remoteConnection = 
             NodeInitializer.getConnection().getConnectionManager(initialNode);
         Iterable<String> nodeIds = remoteConnection.getClusterAdmimnistration().addNewNode(NodeInitializer.getNodeId());
         String groupId = remoteConnection.getClusterAdmimnistration().getGroupId();
         cluster.setGroup(new Group(groupId));
         cluster.getGroup().add(new Node(NodeInitializer.getNodeId()));
-        cluster.getGroup().add(randomSelection(nodeIds));
+        cluster.getGroup().add(getNodeList(nodeIds));
+        
+        // Me seteo como nodo coordinador
+        NodeInitializer.getSimulationManager().setCoordinador();
     }
 
     @Override
@@ -77,13 +83,16 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
 
     @Override
     public void disconnectFromGroup(String nodeId) throws RemoteException {
-        LOGGER.debug("Mando broadcast para desconectarme del grupo");
+        
+        Message message = new Message(NodeInitializer.getNodeId(), 
+                Helper.GetNow(), 
+                MessageType.DISCONNECT, 
+                new DisconnectPayloadImpl(nodeId));
+        NodeInitializer.getCluster().getGroup().remove(nodeId);
         NodeInitializer.getConnection().getGroupCommunication()
-            .broadcast(new Message(NodeInitializer.getNodeId(), 
-                    Helper.GetNow(), 
-                    MessageType.DISCONNECT, 
-                    new DisconnectPayloadImpl(nodeId)));
-        cluster.setGroup(null);
+            .send(message, nodeId);
+        NodeInitializer.getConnection().getGroupCommunication()
+            .broadcast(message);
     }
 
     @Override
@@ -99,28 +108,13 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
     public boolean isConnectedToGroup() throws RemoteException {
         return cluster.getGroup() != null;
     }
-    
-    private List<Node> randomSelection(Iterable<String> nodeIds) {
-        
-        List<Node> randomNodes = new ArrayList<Node>();
-        List<String> nodes = getNodeList(nodeIds);
-        double chance = 0.7;
-        for (String id : nodeIds)
-        {
-            if (Helper.flipCoin(chance))
-            {
-                randomNodes.add(new Node(id));
-            }
-        }
-        return randomNodes;
-    }
-    
-    private List<String> getNodeList(Iterable<String> nodeIds)
+
+    private List<Node> getNodeList(Iterable<String> nodeIds)
     {
-        List<String> ret = new ArrayList<String>();
+        List<Node> ret = new ArrayList<Node>();
         for (String id : nodeIds)
         {
-            ret.add(id);
+            ret.add(new Node(id));
         }
         return ret;
     }
