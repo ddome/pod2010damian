@@ -25,8 +25,6 @@ public class TransactionThread extends Thread {
     {
         boolean flag = false;
         int time = 0;
-        LOGGER.debug(timeout);
-        timeout = 100000;
         while(!flag)
         {
             try {
@@ -42,7 +40,6 @@ public class TransactionThread extends Thread {
             }
             if (time > timeout)
             {
-                LOGGER.info("Timeout en transaccion. Se hace rollback a los " + time);
                 timeout();
             }
         }
@@ -51,6 +48,7 @@ public class TransactionThread extends Thread {
     private void timeout() {
         
         try {
+            LOGGER.info("Se llego al timeout. Se cancela la transaccion");
             transacion.rollback();
             setFinished(true);
         } catch (RemoteException e) {

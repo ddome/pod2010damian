@@ -9,13 +9,13 @@ import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
 import ar.edu.itba.pod.legajo47189.architecture.Cluster;
+import ar.edu.itba.pod.legajo47189.market.Impl.MarketImpl;
 import ar.edu.itba.pod.legajo47189.payload.Impl.DisconnectPayloadImpl;
 import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationManagerImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageType;
-import ar.edu.itba.pod.simul.simulation.SimulationManager;
 
 public class NodeInitializer {
     
@@ -47,6 +47,12 @@ public class NodeInitializer {
         return simulationManager;
     }
     
+    private static MarketImpl market;
+    public static MarketImpl getMarketImpl()
+    {
+        return market;
+    }
+    
     private static String coordinator;
     public static String getCoordinator()
     {
@@ -57,7 +63,15 @@ public class NodeInitializer {
         NodeInitializer.coordinator = coordinator;
     }
     
-    public static List<Message> history;
+    private static List<Message> history;
+    public static void addToHistory(Message message)
+    {
+        history.add(message);
+    }
+    public static List<Message> getHistory()
+    {
+        return history;
+    }
 
     private static ConnectionManager connectionManager;
     public static ConnectionManager getConnection()
@@ -92,6 +106,7 @@ public class NodeInitializer {
         cluster = new Cluster();
         try {
             simulationManager = new SimulationManagerImpl(initId);
+            market = new MarketImpl();
         } catch (RemoteException e1) {
             LOGGER.info(e1);
         }

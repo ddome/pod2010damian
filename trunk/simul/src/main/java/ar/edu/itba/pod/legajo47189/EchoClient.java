@@ -10,6 +10,7 @@ import java.rmi.registry.Registry;
 
 import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationImpl;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
+import ar.edu.itba.pod.simul.market.Resource;
 import ar.edu.itba.pod.simul.simulation.Simulation;
 
 /** 
@@ -71,16 +72,25 @@ public class EchoClient {
 
 	private static void addAgente() throws IOException, NotBoundException
 	{
-	        System.out.println("5-Agregar agente al nodo con id (host:port)");
-	        String command = command();
-	        String host = command.split(":")[0];
-	        Integer port = Integer.parseInt(command.split(":")[1]);
+	        System.out.println("5-Empezar transaccion con nodo nodo con id (host:port)");
 	        
-	        ConnectionManager conn = getConnection(host, 1099);
-	        System.out.println(host);
-	        conn.getNodeCommunication().beginTransaction(command, 100000);
+	        Resource pigIron = new Resource("Mineral", "Pig Iron");
 	        
-	        //conn.getSimulationCommunication().startAgent(descriptor);	    
+	        ConnectionManager conn = getConnection("127.0.0.1", 1099);
+	        
+	        ConnectionManager conn2 = getConnection("127.0.0.1", 1094);
+                conn2.getClusterAdmimnistration().connectToGroup("127.0.0.1:1099");
+	        
+                try {
+                    Thread.sleep(12000);
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                
+	        conn.getNodeCommunication().beginTransaction("127.0.0.1:1094", 200000);
+	        conn.getNodeCommunication().exchange(pigIron, 100, "127.0.0.1:1099", "127.0.0.1:1094");
+	        conn.getNodeCommunication().endTransaction();	    
 	}
 	
     private static void removeNode() throws IOException, NotBoundException 
