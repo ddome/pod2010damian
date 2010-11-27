@@ -23,6 +23,8 @@ public class ConnectionManagerImpl implements ConnectionManager {
         new ClusterCommunicationImpl();
     private TransactionableImpl transaction = 
         new TransactionableImpl();
+    private ThreePhaseCommitImpl commit = 
+        new ThreePhaseCommitImpl(transaction);
     private SimulationCommunicationImpl simulation = 
         new SimulationCommunicationImpl();
     
@@ -92,7 +94,6 @@ public class ConnectionManagerImpl implements ConnectionManager {
 
     @Override
     public ThreePhaseCommit getThreePhaseCommit() throws RemoteException {
-        // TODO Auto-generated method stub
-        return null;
+        return commit;
     }    
 }

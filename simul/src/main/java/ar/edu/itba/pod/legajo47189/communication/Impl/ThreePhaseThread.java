@@ -14,9 +14,9 @@ public class ThreePhaseThread extends Thread {
 
     private final static Logger LOGGER = Logger.getLogger(ThreePhaseThread.class);
     
-    public ThreePhaseThread(int timeout, ThreePhaseCommit commit)
+    public ThreePhaseThread(long timeout, ThreePhaseCommit commit)
     {
-        this.timeout = timeout;
+        this.timeout = (int)timeout;
         this.commit = commit;
     }
     
@@ -32,7 +32,6 @@ public class ThreePhaseThread extends Thread {
                     continue;
             }
             time += 100;
-            
             if (isFinished())
             {
                 break;

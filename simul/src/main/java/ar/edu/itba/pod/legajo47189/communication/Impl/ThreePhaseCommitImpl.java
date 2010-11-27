@@ -1,6 +1,7 @@
 package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 
 import org.apache.log4j.Logger;
 
@@ -17,6 +18,9 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
     
     private final static Logger LOGGER = Logger.getLogger(ThreePhaseCommitImpl.class);
     
+    private TransactionableImpl transaction;
+    private ThreePhaseThread timer;
+    
     public enum ThreePhaseCommitState {
         INITIAL,
         CAN_COMMIT,
@@ -24,9 +28,12 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
         COMMITED
     }
     
-    public ThreePhaseCommitImpl()
+    public ThreePhaseCommitImpl(TransactionableImpl transaction) throws RemoteException
     {
+        this.transaction = transaction;
+        current = ThreePhaseCommitState.INITIAL;
         changeState(ThreePhaseCommitState.INITIAL);
+        UnicastRemoteObject.exportObject(this, 0); 
     }
     
     private ThreePhaseCommitState current;
@@ -41,9 +48,10 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
                 changeState(ThreePhaseCommitState.INITIAL);
                 break;
         case COMMITED:
-            // Tiro todo para atras
+            // TODO: Tirar todo para atras
+            changeState(ThreePhaseCommitState.INITIAL);
+            break;
         }
-
     }
 
     @Override
@@ -54,9 +62,10 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
         {
             changeState(ThreePhaseCommitState.CAN_COMMIT);
             coordinator = coordinatorId;
+            timer = new ThreePhaseThread(timeout, this);
+            timer.start();
             return true;
         }
-        
         return false;
     }
 
@@ -78,6 +87,8 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
                     NodeInitializer.getNodeId());
 
         changeState(ThreePhaseCommitState.COMMITED);
+        transaction.changeState(TransactionableState.COMITTED);
+        timer.setFinished(true);
     }
 
     @Override
@@ -87,10 +98,12 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
                 abort();
                 break;
         case PRE_COMMIT:
+                // Se hace el commit igualmente
                 doCommit(coordinator);
                 break;
         case COMMITED:
-            changeState(ThreePhaseCommitState.INITIAL); 
+            abort();
+            break;
         default:
             break;
         }

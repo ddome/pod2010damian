@@ -17,13 +17,14 @@ import ar.edu.itba.pod.simul.market.Resource;
 public class TransactionableImpl implements Transactionable {
 
     private final static Logger LOGGER = Logger.getLogger(TransactionableImpl.class);
-    public static final int TIMEOUT = 5000;
+    public static final int TIMEOUT = 10000;
     
     public enum TransactionableState {
         INITIAL,
         READY,
+        WAITING,
         COMMITING,
-        WAITING
+        COMITTED
     }
    
     private TransactionThread timer;
@@ -36,14 +37,16 @@ public class TransactionableImpl implements Transactionable {
     private Resource resource;
     private AtomicBoolean exchanged;
     
+    private String takeFrom;
+    private String takeTo;
+    
     public TransactionableImpl() throws RemoteException 
     {
-        UnicastRemoteObject.exportObject(this, 0); 
         amount = new AtomicInteger();
         exchanged = new AtomicBoolean();
         resource = null;
         current = TransactionableState.INITIAL;
-        
+        UnicastRemoteObject.exportObject(this, 0); 
     }
 
     @Override
@@ -81,7 +84,7 @@ public class TransactionableImpl implements Transactionable {
     
     @Override
     public void acceptTransaction(String remoteNodeId) throws RemoteException {
-        
+                
         if (current != TransactionableState.INITIAL)
         {
             try {
@@ -110,16 +113,7 @@ public class TransactionableImpl implements Transactionable {
             throw new IllegalStateException("No hay una transaccion inicializada");
         }
         changeState(TransactionableState.COMMITING);
-        
-        try
-        {
-            commit();
-        }
-        catch(Exception e)
-        {
-            rollback();
-            throw new RemoteException("No pudo completarse el commit");
-        }
+        commit(remoteId);
         
     }
 
@@ -128,26 +122,32 @@ public class TransactionableImpl implements Transactionable {
             String destinationNode) throws RemoteException {
  
         if (current != TransactionableState.READY) {
+            rollback();
             throw new IllegalStateException("No se inicio una transaccion");
         }
         
         if (!remoteId.equals(destinationNode))
         {
+            rollback();
             throw new IllegalStateException("No se inicio una transaccion con el nodo destino");
         }
         
         if (!NodeInitializer.getNodeId().equals(sourceNode))
         {
+            rollback();
             throw new IllegalStateException("No hay una transiccion iniciada para el nodo source");
         }
         
-        if (!sourceNode.equals(destinationNode))
+        if (sourceNode.equals(destinationNode))
         {
+            rollback();
             throw new IllegalStateException("Los nodos destino y fuente son iguales");
         }
         
         this.resource = resource;
         this.amount.set(amount);
+        takeFrom = sourceNode;
+        takeTo = destinationNode;
         exchanged.set(true);
     }
 
@@ -163,9 +163,7 @@ public class TransactionableImpl implements Transactionable {
         {
             throw new IllegalStateException("No hay recursos intercambiados");
         }
-        
-        return new ResourceTransferPayloadImpl(amount.get(), resource);
-        
+        return new ResourceTransferPayloadImpl(amount.get(), resource, takeFrom, takeTo);
     }
 
     @Override
@@ -177,8 +175,9 @@ public class TransactionableImpl implements Transactionable {
         remoteId = null;
     }
 
-    private void commit() throws Exception
+    private void commit(String remoteId) throws RemoteException
     {
+        LOGGER.debug(remoteId);
         ThreePhaseCommit from = null;
         try {
             from = NodeInitializer.getConnection().getThreePhaseCommit();
@@ -192,7 +191,8 @@ public class TransactionableImpl implements Transactionable {
         try {
             remote = NodeInitializer.getConnection().getConnectionManager(remoteId);
             to = remote.getThreePhaseCommit();
-        } catch (Exception e) {
+        } catch (RemoteException e) {
+            rollback();
             LOGGER.error("No pudo establecerse una conexion con el nodo " + remoteId + ". Se desconecta el nodo de la cluster");
             try {
                 NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(remoteId);
@@ -201,48 +201,63 @@ public class TransactionableImpl implements Transactionable {
                 rollback();
                 return;
             }
-            throw(e);
+            throw e;
         }
         
+        LOGGER.debug(from);
+        LOGGER.debug(to);
+        
         // Can commit
-        LOGGER.info("Se inicia la transaccion");
+        LOGGER.info("Se inicia el comiteo");
         if (from.canCommit(NodeInitializer.getNodeId(), TIMEOUT) 
                 && to.canCommit(NodeInitializer.getNodeId(), TIMEOUT))
         {
             LOGGER.info("Can commit ok");
             // Pre commit
             try{
-                from.preCommit(NodeInitializer.getNodeId());
                 to.preCommit(NodeInitializer.getNodeId());
+                from.preCommit(NodeInitializer.getNodeId());
                 changeState(TransactionableState.WAITING);
-            }catch(RemoteException e)
+            }catch(Exception e)
             {
-                LOGGER.info("Fallo la transaccion");
+                rollback();
+                LOGGER.info("Fallo la transaccion en el preCommit");
                 from.abort();
                 to.abort();
-                throw(e);
+                throw new RemoteException(e.getMessage());
             }
             LOGGER.info("Pre commit ok");
             try{
-                from.doCommit(NodeInitializer.getNodeId());
                 to.doCommit(NodeInitializer.getNodeId());
+                from.doCommit(NodeInitializer.getNodeId());
                 changeState(TransactionableState.COMMITING);
-            }catch(RemoteException e)
+            }catch(Exception e)
             {
-                LOGGER.info("Fallo la transaccion");
+                rollback();
+                LOGGER.info("Fallo la transaccion en el doCommit");
                 from.abort();
                 to.abort();
-                throw(e);
+                throw new RemoteException(e.getMessage());
             }
             LOGGER.info("Termino el commit");
-            changeState(TransactionableState.INITIAL);
+        }
+        else
+        {
+            rollback();
+            LOGGER.info("Los nodos no estan disponibles para comitear");
+            throw new RemoteException("Los nodos no estan disponibles para comitear");
         }
     }
     
-    private void changeState(TransactionableState state)
+    public void changeState(TransactionableState state)
     {
         synchronized (current) {
             current = state;
         }
+    }
+    
+    public void endTimer()
+    {
+        timer.setFinished(true);
     }
 }

@@ -34,7 +34,7 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
         String me = NodeInitializer.getNodeId();
         boolean flag = false;
         boolean ret;
-        NodeInitializer.history.add(message);
+        NodeInitializer.addToHistory(message);
         while(!flag)
         {
             nodes = RandomSelection(nodes);

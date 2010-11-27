@@ -11,6 +11,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 
+import ar.edu.itba.pod.legajo47189.communication.Impl.ThreePhaseCommitImpl.ThreePhaseCommitState;
+import ar.edu.itba.pod.legajo47189.communication.Impl.TransactionableImpl.TransactionableState;
 import ar.edu.itba.pod.legajo47189.payload.Impl.NodeAgentsLoadPayload;
 import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationManagerImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
@@ -23,13 +25,15 @@ import ar.edu.itba.pod.simul.communication.payload.DisconnectPayload;
 import ar.edu.itba.pod.simul.communication.payload.Payload;
 import ar.edu.itba.pod.simul.communication.payload.ResourceTransferMessagePayload;
 import ar.edu.itba.pod.simul.market.Resource;
+import ar.edu.itba.pod.simul.market.ResourceStock;
+
+import com.google.common.collect.Multiset;
 
 public class MessageListenerImpl extends Thread implements MessageListener {
     
     private final static Logger LOGGER = Logger.getLogger(MessageListenerImpl.class);
     
     private BlockingQueue<Message> messagesQueue;
-    private List<Message> history;
     private List<Message> messages;
     private Map<String, Long> requests;
     private boolean stopFlag = false;
@@ -38,7 +42,6 @@ public class MessageListenerImpl extends Thread implements MessageListener {
     {
         UnicastRemoteObject.exportObject(this, 0);
         messagesQueue = new LinkedBlockingQueue<Message>();
-        history = NodeInitializer.history;
         messages = new ArrayList<Message>();
         requests = new ConcurrentHashMap<String, Long>();
         new Thread(this).start();
@@ -60,7 +63,7 @@ public class MessageListenerImpl extends Thread implements MessageListener {
                     milis += 100;
                     if (milis == 10000)
                     {
-                        history.clear();
+                        NodeInitializer.getHistory().clear();
                         messages.clear();
                         requests.clear();
                         milis = 0;
@@ -83,42 +86,75 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         
         Long lastSync = requests.get(remoteNodeId);
         requests.put(remoteNodeId, Helper.GetNow());
-        //List<Message> ret = getMessagesSince(lastSync);
-        //return ret;
-        return history;
+        List<Message> ret = getMessagesSince(lastSync, remoteNodeId);
+        return ret;
     }
     
-    private List<Message> getMessagesSince(Long lastSync)
+    private List<Message> getMessagesSince(Long lastSync, String toNodeId)
     {
         List<Message> messages = new ArrayList<Message>();
+        List<Message> except = except(NodeInitializer.getHistory(), toNodeId);
         
-        int index = history.size() - 1;
-        if (index < 0)
-        	return messages;
-        
-        Message current = history.get(index);
-        if (current.getTimeStamp() > lastSync)
+        if(lastSync == null)
         {
-        	history.add(current);
+            return except;
+        }
+        
+        int index = except.size() - 1;
+        if (index < 0)
+        	return except;
+        
+        Message current = except.get(index);
+        
+        if(current==null)
+        {
+            return except;
+        }
+        
+        Long timestamp = current.getTimeStamp();
+        if (timestamp > lastSync)
+        {
+                messages.add(current);
         }
         index--;
-        
-        while(current.getTimeStamp() > lastSync && index >= 0)
+        while(index >= 0)
         {
-        	current = history.get(index);
-        	messages.add(current); 
+        	current = except.get(index);
+        	//if (current.getTimeStamp() < lastSync)
+        	//{
+        	//    break;
+        	//}
+        	messages.add(current);
         	index--;
         } 
         return messages;
+    }
+    
+    public List<Message> except(List<Message> messages, String nodeId)
+    {
+        List<Message> ret = new ArrayList<Message>();
+        for (Message message : messages)
+        {
+            if (!message.getNodeId().equals(nodeId))
+            {
+                ret.add(message);
+            }
+        }
+        return ret;
     }
     
 
     @Override
     public boolean onMessageArrive(Message message) throws RemoteException {
         boolean messageExists = messages.contains(message);
-        if (!messageExists && !message.getNodeId().equals(NodeInitializer.getNodeId()))
+        if (!messageExists)
         {
             messages.add(message);
+            // Es un broadcast que inicie yo
+            if (message.getNodeId().equals(NodeInitializer.getNodeId()) && isBroadcast(message))
+            {
+                return messageExists;
+            }
             try {
                 messagesQueue.put(message);
             } catch (InterruptedException e) {
@@ -130,7 +166,7 @@ public class MessageListenerImpl extends Thread implements MessageListener {
                 NodeInitializer.getConnection().getGroupCommunication().broadcast(message);
                 LOGGER.info("Se retransmiti— exitosamente el mensaje " + message.getNodeId());
             }
-            
+
         }
         return messageExists;
     }
@@ -181,6 +217,10 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         if (type == MessageType.NODE_AGENTS_LOAD)
         {
             onNodeAgentsLoad(message);
+        }
+        if (type == MessageType.RESOURCE_TRANSFER)
+        {
+            onRequestTranfer(message);
         }
     }
     
@@ -249,8 +289,71 @@ public class MessageListenerImpl extends Thread implements MessageListener {
     
     private void onRequestTranfer(Message message)
     {
+        TransactionableImpl transaction = null;
+        ThreePhaseCommitImpl commit = null;
+        Multiset<Resource> colaExterna = null;
+        Multiset<ResourceStock> selling = null;
+        
+        try {
+            ConnectionManager connection = NodeInitializer.getConnection();
+            transaction = (TransactionableImpl)connection.getNodeCommunication();
+            commit = (ThreePhaseCommitImpl)connection.getThreePhaseCommit();
+            selling =  NodeInitializer.getMarketImpl().getSelling();
+            colaExterna = NodeInitializer.getMarketImpl().getColaExterna();
+        } catch (RemoteException e) {
+            LOGGER.error(e);
+            return;
+        }
+        
         int amount = ((ResourceTransferMessagePayload)message.getPayload()).getAmount();
         Resource resource = ((ResourceTransferMessagePayload)message.getPayload()).getResource();
-        LOGGER.info("Transfiero " + amount + " de " + resource.name());
+        String source = ((ResourceTransferMessagePayload)message.getPayload()).getSource();
+        String destination = ((ResourceTransferMessagePayload)message.getPayload()).getDestination();
+        
+        if (source.equals(NodeInitializer.getNodeId()))
+        {
+            // Entrego
+            LOGGER.info("Transfiero " + amount + " de " + resource.name());
+            synchronized (colaExterna) {
+                if (colaExterna.count(resource) != 0) {
+                    colaExterna.add(resource, amount);
+                } else {
+                    colaExterna.setCount(resource, amount);
+            }
+        }
+        }
+        else
+        {
+            // Me entregan
+            LOGGER.info("Me transfieren " + amount + " de " + resource.name());
+            for (ResourceStock venta : selling)
+            {
+                if(venta.resource().equals(resource))
+                {
+                    int cantidad = selling.count(venta);
+                    LOGGER.info(venta.name() + " vendio " + amount);
+                    if (cantidad - amount > 0)
+                    {
+                        // ME SOBRA PAPA!
+                        selling.setCount(venta, cantidad, cantidad - amount);
+                        break;
+                    }
+                    else
+                    {
+                        selling.setCount(venta, cantidad, 0);
+                        amount = amount - cantidad;
+                        if (amount <= 0)
+                        {
+                            break;
+                        }
+                        
+                    }
+                }
+            }
+        }
+        LOGGER.info("Terminada la transferencia de recursos");
+        commit.changeState(ThreePhaseCommitState.INITIAL);
+        transaction.changeState(TransactionableState.INITIAL);
+        transaction.endTimer();
     }
 }
