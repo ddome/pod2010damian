@@ -232,13 +232,10 @@ public class TransactionableImpl implements Transactionable {
                 to.abort();
                 throw new RemoteException(e.getMessage());
             }
-            LOGGER.info("Termino el commit");
         }
         else
         {
             rollback();
-            LOGGER.info("Los nodos no estan disponibles para comitear");
-            throw new RemoteException("Los nodos no estan disponibles para comitear");
         }
     }
     

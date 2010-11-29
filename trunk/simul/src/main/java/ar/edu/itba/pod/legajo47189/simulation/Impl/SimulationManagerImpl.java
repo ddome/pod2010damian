@@ -116,7 +116,8 @@ public class SimulationManagerImpl implements SimulationManager{
             }
         }
         try {
-            connection.getSimulationCommunication().startAgent(agent.getAgentDescriptor());
+        	if (connection != null)
+        		connection.getSimulationCommunication().startAgent(agent.getAgentDescriptor());
         } catch (RemoteException e1) {
             LOGGER.error(e1);
             return;
@@ -261,7 +262,11 @@ public class SimulationManagerImpl implements SimulationManager{
         if (except != null)
         {
             NodeAgentLoad exceptLoad = agentLoads.get(except);
-            migrate.addAll(cutAgents(exceptLoad, exceptLoad.getNumberOfAgents()));
+            
+            if(exceptLoad != null)
+            {
+            	migrate.addAll(cutAgents(exceptLoad, exceptLoad.getNumberOfAgents()));
+            }
         }
         
         if (agentsPerNode > 0)

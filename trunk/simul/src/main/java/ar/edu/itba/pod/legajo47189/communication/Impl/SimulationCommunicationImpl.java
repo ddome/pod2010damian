@@ -104,7 +104,7 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
         int number = manager.getLoads().get(NodeInitializer.getNodeId()).getNumberOfAgents() + 1;
         NodeAgentLoad newLoad = new NodeAgentLoad(NodeInitializer.getNodeId(), number);
         avisarNuevaCarga(newLoad);
-       // agent.start();
+        agent.start();
     }
     
     private void avisarNuevaCarga(NodeAgentLoad load) 
@@ -141,7 +141,6 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
         int min = Integer.MAX_VALUE;
         NodeAgentLoad nodeLoad = null;
         
-        LOGGER.debug("Voy a procesar " + nodeLoads.size());
         for (NodeAgentLoad load : loads)
         {
             if (load.getNumberOfAgents() < min)
