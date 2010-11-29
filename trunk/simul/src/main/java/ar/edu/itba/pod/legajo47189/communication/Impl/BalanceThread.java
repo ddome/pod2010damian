@@ -1,19 +1,19 @@
-package ar.edu.itba.pod.simul.communication.payload;
+package ar.edu.itba.pod.legajo47189.communication.Impl;
 
 import org.apache.log4j.Logger;
 
-import ar.edu.itba.pod.legajo47189.communication.Impl.ClusterCommunicationImpl;
-import ar.edu.itba.pod.legajo47189.communication.Impl.NodeInitializer;
 import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationManagerImpl;
 
 public class BalanceThread extends Thread {
 
     SimulationManagerImpl manager;
     private final static Logger LOGGER = Logger.getLogger(BalanceThread.class);
+    private String except;
     
-    public BalanceThread(SimulationManagerImpl manager)
+    public BalanceThread(SimulationManagerImpl manager, String except)
     {
         this.manager = manager;
+        this.except = except;
     }
     
     @Override
@@ -22,7 +22,7 @@ public class BalanceThread extends Thread {
         LOGGER.info("Comienzo de espera de sincronizacion de coordinador");
         try {
             //TODO: definir el tiempo necesario en algun lado
-            Thread.sleep(10000);
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
                 LOGGER.error(e);
         }
@@ -33,7 +33,7 @@ public class BalanceThread extends Thread {
         }
         else
         {
-            manager.doBalance();
+            manager.doBalance(except);
         }
     }
 

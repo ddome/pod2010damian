@@ -64,7 +64,7 @@ public abstract class Agent extends CleanableThread implements SimulationEventHa
 			throw new IllegalStateException("Can't bind to a simulation when agent is running!");
 		}
 		this.simulation = simulation;
-		//simulation.add(finishHandler);
+		simulation.add(finishHandler);
 	}
 	
 	/**
@@ -72,7 +72,7 @@ public abstract class Agent extends CleanableThread implements SimulationEventHa
 	 */
 	@Override
 	public void finish() {
-		//simulation.remove(finishHandler);
+		simulation.remove(finishHandler);
 		super.finish();
 	}
 	
@@ -82,8 +82,7 @@ public abstract class Agent extends CleanableThread implements SimulationEventHa
 	 * @return The object or {@link IllegalStateException} if no object is registered
 	 */
 	protected <T> T env(Class<T> param) {
-		//return simulation.env(param);
-		return null;
+		return simulation.env(param);
 	}
 	
 	/**
@@ -107,7 +106,7 @@ public abstract class Agent extends CleanableThread implements SimulationEventHa
 	}
 
 	protected final void waitFor(int amount, TimeUnit unit) throws InterruptedException {
-		//simulation.wait(amount, unit);
+		simulation.wait(amount, unit);
 		Thread.sleep(100);
 	}
 

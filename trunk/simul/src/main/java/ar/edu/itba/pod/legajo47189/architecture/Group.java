@@ -57,8 +57,14 @@ public class Group implements Serializable {
     
     public void remove(String nodeId)
     {
-        Node node = new Node(nodeId, null);
-        this.nodes.remove(node);
+        for (Node node : nodes)
+        {
+            if (node.getNodeId().equals(nodeId))
+            {
+                nodes.remove(node);
+                break;
+            }
+        }
     }
     
     public List<Node> getNodes()

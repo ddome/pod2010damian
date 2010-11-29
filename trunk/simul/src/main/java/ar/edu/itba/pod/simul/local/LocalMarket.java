@@ -33,7 +33,7 @@ public class LocalMarket extends CleanableThread implements Market, MarketInspec
 	protected final Multiset<ResourceStock> selling = ConcurrentHashMultiset.create();
 	protected final Multiset<ResourceStock> buying = ConcurrentHashMultiset.create();
 	private final List<TransferHistoryItem> history = Lists.newArrayList();
-	private volatile int transactionCount;
+	public volatile int transactionCount;
 	private Date startTime;
 	@Override
 	public Collection<ResourceDemand> managedResources() {
@@ -247,10 +247,10 @@ public class LocalMarket extends CleanableThread implements Market, MarketInspec
 	}
 
 	/**
-	 * @return the average number of transactions per second
-	 */
+	* @return the average number of transactions per second
+	*/
 	private double getTransactionsPerSecond() {
-		long time = System.currentTimeMillis() - startTime.getTime();
-		return ((double)transactionCount())/time;
+	long time = System.currentTimeMillis() - startTime.getTime();
+	return ((double)transactionCount())/time*1000;
 	}
 }

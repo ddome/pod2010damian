@@ -13,30 +13,36 @@ import org.apache.log4j.Logger;
 
 import ar.edu.itba.pod.legajo47189.communication.Impl.ThreePhaseCommitImpl.ThreePhaseCommitState;
 import ar.edu.itba.pod.legajo47189.communication.Impl.TransactionableImpl.TransactionableState;
+import ar.edu.itba.pod.legajo47189.market.Impl.MarketImpl;
 import ar.edu.itba.pod.legajo47189.payload.Impl.NodeAgentsLoadPayload;
 import ar.edu.itba.pod.legajo47189.simulation.Impl.SimulationManagerImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
+import ar.edu.itba.pod.simul.communication.MarketData;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageListener;
 import ar.edu.itba.pod.simul.communication.MessageType;
 import ar.edu.itba.pod.simul.communication.NodeAgentLoad;
+import ar.edu.itba.pod.simul.communication.Transactionable;
 import ar.edu.itba.pod.simul.communication.payload.DisconnectPayload;
+import ar.edu.itba.pod.simul.communication.payload.NodeMarketDataPayload;
 import ar.edu.itba.pod.simul.communication.payload.Payload;
+import ar.edu.itba.pod.simul.communication.payload.ResourceRequestPayload;
 import ar.edu.itba.pod.simul.communication.payload.ResourceTransferMessagePayload;
+import ar.edu.itba.pod.simul.market.NodeMarketDataPayloadImpl;
 import ar.edu.itba.pod.simul.market.Resource;
 import ar.edu.itba.pod.simul.market.ResourceStock;
+import ar.edu.itba.pod.thread.CleanableThread;
 
 import com.google.common.collect.Multiset;
 
-public class MessageListenerImpl extends Thread implements MessageListener {
+public class MessageListenerImpl extends CleanableThread implements MessageListener {
     
     private final static Logger LOGGER = Logger.getLogger(MessageListenerImpl.class);
     
     private BlockingQueue<Message> messagesQueue;
     private List<Message> messages;
     private Map<String, Long> requests;
-    private boolean stopFlag = false;
     
     public MessageListenerImpl() throws RemoteException
     {
@@ -53,7 +59,7 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         LOGGER.info("Iniciando el proceso de escucha de mensajes");
         Message message;
         int milis = 0;
-        while(!stopFlag)
+        while(!shouldFinish())
         {
             try {
                 message = messagesQueue.poll();
@@ -143,18 +149,27 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         return ret;
     }
     
+    private void urgent(Message message)
+    {
+        if (message.getType() == MessageType.NODE_AGENTS_LOAD_REQUEST)
+        {
+            NodeInitializer.setCoordinator( message.getNodeId() );
+        }
+    }
+    
 
     @Override
     public boolean onMessageArrive(Message message) throws RemoteException {
         boolean messageExists = messages.contains(message);
         if (!messageExists)
         {
+            urgent(message);
             messages.add(message);
-            // Es un broadcast que inicie yo
-            if (message.getNodeId().equals(NodeInitializer.getNodeId()) && isBroadcast(message))
-            {
-                return messageExists;
-            }
+            //// Es un broadcast que inicie yo
+            //if (message.getNodeId().equals(NodeInitializer.getNodeId()) && isBroadcast(message))
+            //{
+            //    return messageExists;
+            //}
             try {
                 messagesQueue.put(message);
             } catch (InterruptedException e) {
@@ -191,36 +206,77 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         {
             return true;
         }
+        else if (type == MessageType.NODE_MARKET_DATA_REQUEST)
+        {
+            return true;
+        }
+        else if (type == MessageType.NODE_MARKET_DATA)
+        {
+            return false;
+        }
         else
         {
             return false;
         }
     }
     
-    public void endThread()
-    {
-        stopFlag = true;
-    }
-    
     private void messageProcess(Message message) throws InterruptedException
     {
-        LOGGER.info("Procesando el mensaje " + message.getNodeId() + " de tipo " + message.getType().toString());
+        //LOGGER.info("Procesando el mensaje " + message.getNodeId() + " de tipo " + message.getType().toString());
         MessageType type = message.getType();
         if (type == MessageType.DISCONNECT)
         {
             onDisconnect(message);
         }
-        if (type == MessageType.NODE_AGENTS_LOAD_REQUEST)
+        else if (type == MessageType.NODE_AGENTS_LOAD_REQUEST)
         {
             onNodeAgentsLoadRequest(message);
         }
-        if (type == MessageType.NODE_AGENTS_LOAD)
+        else if (type == MessageType.NODE_AGENTS_LOAD)
         {
             onNodeAgentsLoad(message);
         }
-        if (type == MessageType.RESOURCE_TRANSFER)
+        else if (type == MessageType.RESOURCE_TRANSFER)
         {
             onRequestTranfer(message);
+        }
+        else if (type == MessageType.RESOURCE_REQUEST)
+        {
+            onResourceRequest(message);
+        }
+        else if (type == MessageType.NODE_MARKET_DATA_REQUEST)
+        {
+            onNodeMarketDataRequest(message);
+        }
+        else if (type == MessageType.NODE_MARKET_DATA)
+        {
+            onNodeMarketData(message);   
+        }
+    }
+    
+    private void onNodeMarketDataRequest(Message message)
+    {        
+        if (!message.getNodeId().equals(NodeInitializer.getNodeId()))
+        {
+            MarketData data = NodeInitializer.getMarketImpl().basicMarketData();
+            NodeInitializer.setCoordinator(message.getNodeId());
+            Payload payload = new NodeMarketDataPayloadImpl(data);
+            Message newMessage = new Message(NodeInitializer.getNodeId(), Helper.GetNow(), MessageType.NODE_MARKET_DATA, payload);
+            try {
+                NodeInitializer.getConnection().getGroupCommunication().send(newMessage, message.getNodeId());
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+            }
+        }
+    }
+    
+    private void onNodeMarketData(Message message)
+    {
+        if (!message.getNodeId().equals(NodeInitializer.getNodeId()))
+        {
+            MarketData data = ((NodeMarketDataPayload)message.getPayload()).getMarketData();
+            LOGGER.info("Agrego transacciones " + data.getHistory().getTransactionsPerSecond());
+            NodeInitializer.getMarketImpl().addTotal(data.getHistory().getTransactionsPerSecond());
         }
     }
     
@@ -231,13 +287,33 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         if (disconnectedNode.equals(NodeInitializer.getNodeId()))
         {
             LOGGER.info("Se desconectara el nodo actual del grupo");
+            // le doy tiempo a mi cluster para que reorganice mis agentes
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                LOGGER.error(e);
+            }
             NodeInitializer.getCluster().setGroup(null);
+            try {
+                NodeInitializer.disconnect();
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+            }
         }
         else
         {
             LOGGER.info("Se desconectar‡ el nodo " + disconnectedNode + " de mi cluster");
             NodeInitializer.getCluster().getGroup().remove(disconnectedNode);
             LOGGER.info("Se desconecto el nodo " + disconnectedNode + " de mi cluster");
+            
+            // Si el nodo que se desconecto era el coordinador, tengo que organizar todo 
+            // devuelta para que los demas nodos tengan un coordinador valido
+            //if (NodeInitializer.getCoordinator().equals(disconnectedNode) 
+              //      || NodeInitializer.getCoordinator().equals(NodeInitializer.getNodeId()))
+            //{
+             //   LOGGER.info("ENTREee");
+             //   NodeInitializer.getSimulationManager().setCoordinador(null);
+            //}
         }
     }
     
@@ -259,6 +335,8 @@ public class MessageListenerImpl extends Thread implements MessageListener {
     
     private void onNodeAgentsLoad(Message message)
     {
+        
+        
         SimulationManagerImpl manager = 
             (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         int size = ((NodeAgentsLoadPayload)message.getPayload()).getLoad();
@@ -274,8 +352,13 @@ public class MessageListenerImpl extends Thread implements MessageListener {
                 connection.getSimulationCommunication().nodeLoadModified(load);
             } catch(Exception e)
             {
+                try {
+                    NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(NodeInitializer.getCoordinator());
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                }
                 LOGGER.error("No se encontro la conexion al nodo coordinador");
-                manager.setCoordinador();
+                manager.setCoordinador(null);
                 LOGGER.info("Se establece al nodo actual como coordinador");
                 manager.getLoads().put(NodeInitializer.getNodeId(), load);
             }
@@ -310,28 +393,25 @@ public class MessageListenerImpl extends Thread implements MessageListener {
         String source = ((ResourceTransferMessagePayload)message.getPayload()).getSource();
         String destination = ((ResourceTransferMessagePayload)message.getPayload()).getDestination();
         
-        if (source.equals(NodeInitializer.getNodeId()))
+        if (!source.equals(NodeInitializer.getNodeId()))
         {
-            // Entrego
-            LOGGER.info("Transfiero " + amount + " de " + resource.name());
+            // Me entregan
             synchronized (colaExterna) {
                 if (colaExterna.count(resource) != 0) {
                     colaExterna.add(resource, amount);
                 } else {
                     colaExterna.setCount(resource, amount);
+                }
             }
-        }
         }
         else
         {
-            // Me entregan
-            LOGGER.info("Me transfieren " + amount + " de " + resource.name());
+            // Entrego
             for (ResourceStock venta : selling)
             {
                 if(venta.resource().equals(resource))
                 {
                     int cantidad = selling.count(venta);
-                    LOGGER.info(venta.name() + " vendio " + amount);
                     if (cantidad - amount > 0)
                     {
                         // ME SOBRA PAPA!
@@ -351,9 +431,121 @@ public class MessageListenerImpl extends Thread implements MessageListener {
                 }
             }
         }
-        LOGGER.info("Terminada la transferencia de recursos");
-        commit.changeState(ThreePhaseCommitState.INITIAL);
         transaction.changeState(TransactionableState.INITIAL);
         transaction.endTimer();
+        commit.changeState(ThreePhaseCommitState.INITIAL);
+    }
+    
+    public void onResourceRequest(Message message)
+    {
+        ResourceRequestPayload payload = (ResourceRequestPayload)message.getPayload();
+        int cantidad = payload.getAmountRequested();
+        Resource recurso = payload.getResource();
+        String requester = message.getNodeId();
+        int transferencia = 0;
+        
+        if (requester == null)
+        {
+            LOGGER.error("El nodo solicitante es invalido");
+            return;
+        }
+        
+        MarketImpl market = NodeInitializer.getMarketImpl();
+        Multiset<ResourceStock> selling = market.getSelling();
+
+        synchronized (selling) {
+            for (ResourceStock sell : selling)
+            {
+                if (sell.resource().equals(recurso))
+                {
+                    if (sell.current() >= cantidad)
+                    {
+                        transferencia = cantidad;
+                    }
+                    else
+                    {
+                        transferencia = sell.current();
+                    }
+                }
+            }
+        }
+        
+        if (transferencia != 0)
+        {
+            ConnectionManager connection = NodeInitializer.getConnection();
+            Transactionable transaction;
+            try {
+                transaction = connection.getNodeCommunication();
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+                return;
+            }
+            try {
+                transaction.beginTransaction(requester, 10000);
+            } catch (RemoteException e) {
+                try {
+                    transaction.rollback();
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            catch (IllegalStateException e2) {
+                try {
+                    transaction.rollback();
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            try {
+                transaction.exchange(recurso, transferencia, NodeInitializer.getNodeId(), requester);
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+                try {
+                    transaction.rollback();
+                    LOGGER.error(e);
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            catch (IllegalStateException e2) {
+                try {
+                    LOGGER.error(e2);
+                    transaction.rollback();
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            try {
+                transaction.endTransaction();
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+                try {
+                    transaction.rollback();
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            catch (IllegalStateException e2) {
+                try {
+                    LOGGER.error(e2);
+                    transaction.rollback();
+                    return;
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                    return;
+                }
+            }
+            
+        }        
     }
 }

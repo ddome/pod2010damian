@@ -1,54 +1,72 @@
 package ar.edu.itba.pod.legajo47189.simulation.Impl;
 
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import ar.edu.itba.pod.legajo47189.communication.Impl.NodeInitializer;
 import ar.edu.itba.pod.simul.simulation.Simulation;
 import ar.edu.itba.pod.simul.simulation.SimulationEvent;
 import ar.edu.itba.pod.simul.simulation.SimulationEventHandler;
-import ar.edu.itba.pod.simul.simulation.SimulationManager;
+import ar.edu.itba.pod.simul.simulation.SimulationInspector;
 import ar.edu.itba.pod.simul.time.TimeMapper;
+import ar.edu.itba.pod.thread.doc.ThreadSafe;
 
-public class SimulationImpl implements Simulation, Remote{
+import com.google.common.base.Preconditions;
 
-    private TimeMapper timeMapper;
-    private SimulationManager simulationManager;
-    
-    public SimulationImpl() throws RemoteException
-    {
-        UnicastRemoteObject.exportObject(this, 0);
-        simulationManager = NodeInitializer.getSimulationManager();
-    }
-    
-    @Override
-    public void add(SimulationEventHandler handler) {
-        // TODO Auto-generated method stub
-    }
+/**
+ * Local implementation of a simulation.
+ * This implementation uses a different threrad for each agent
+ */
+@ThreadSafe
+class SimulationImpl implements Simulation, SimulationInspector {
+        private final List<SimulationEventHandler> handlers =  new CopyOnWriteArrayList<SimulationEventHandler>();
+        private  TimeMapper timeMapper;
 
-    @Override
-    public <T> T env(Class<T> param) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public void raise(SimulationEvent event) {
-        // TODO Auto-generated method stub
+        public SimulationImpl(TimeMapper timeMapper) {
+                super();
+                this.timeMapper = timeMapper;
+        }
         
-    }
-
-    @Override
-    public void remove(SimulationEventHandler handler) {
-        // TODO Auto-generated method stub
+        @Override
+        public void add(SimulationEventHandler handler) {
+                Preconditions.checkArgument(!handlers.contains(handler), "Can't add a handler twice!");
+                handlers.add(handler);
+        }
         
-    }
+        @Override
+        public void remove(SimulationEventHandler handler) {
+                Preconditions.checkArgument(handlers.contains(handler), "Handler not registered!");
+                handlers.remove(handler);
+        }
+        
+        @Override
+        public void raise(SimulationEvent event) {
+                for(SimulationEventHandler handler : handlers) {
+                        handler.onEvent(event);
+                }
+        }
+        
+        @Override
+        public void wait(int amount, TimeUnit unit) throws InterruptedException {
+                long millis = timeMapper.toMillis(amount, unit);
+                Thread.sleep(millis);
+        }
 
-    @Override
-    public void wait(int amount, TimeUnit unit) throws InterruptedException {
-            Thread.sleep(amount);
-    }
-   
+        
+        @SuppressWarnings("unchecked")
+        @Override
+        public <T> T env(Class<T> param) {
+                return NodeInitializer.getSimulationManager().getEnv(param);
+        }
+        
+        public void setTimeMapper(TimeMapper timer)
+        {
+            this.timeMapper = timer;
+        }
+
+        @Override
+        public int runningAgents() {
+            return NodeInitializer.getSimulationManager().getAgents().size();
+        }
 }

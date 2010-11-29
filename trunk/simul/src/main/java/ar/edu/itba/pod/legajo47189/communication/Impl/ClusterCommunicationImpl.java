@@ -44,12 +44,11 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
             nodes.remove(new Node(message.getNodeId()));
             if (nodes.size() == 0)
             {
-                LOGGER.info("No hay nodos para transmitir broadcast");
                 flag = true;
             }
             else
             {
-                LOGGER.info("Inicio un broadcast a " + nodes.size() + " nodos");
+               // LOGGER.info("Inicio un broadcast a " + nodes.size() + " nodos");
             }
             
             for (Node node : nodes)
@@ -62,7 +61,6 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
                 }
             }
         }
-        LOGGER.info("Broadcast finalizado exitosamente");
     }
 
     private List<Node> RandomSelection(List<Node> nodes) {
@@ -86,17 +84,16 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
     @Override
     public boolean send(Message message, String nodeId) throws RemoteException {
         boolean ret = false;
-        LOGGER.info("Mando el mensaje " + message.getNodeId() + " al nodo " + nodeId);
+       // LOGGER.info("Mando el mensaje " + message.getNodeId() + " al nodo " + nodeId);
         try {
             ConnectionManager manager = 
                 NodeInitializer.getConnection().getConnectionManager(nodeId);
             ret = manager.getGroupCommunication().getListener().onMessageArrive(message);
         } catch (RemoteException e) {
-            LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido. Se borra el nodo de la cluster");
-            NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(nodeId);
+            LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido.");      
             throw e;
         }
-        LOGGER.info("Mensaje " + message.getNodeId() + " al nodo " + nodeId + " enviado correctamente");
+        //LOGGER.info("Mensaje " + message.getNodeId() + " al nodo " + nodeId + " enviado correctamente");
         return ret;
     }
 }
