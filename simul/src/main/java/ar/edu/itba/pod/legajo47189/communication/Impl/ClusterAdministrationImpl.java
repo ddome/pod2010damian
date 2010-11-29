@@ -64,7 +64,7 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
         cluster.getGroup().add(getNodeList(nodeIds));
         
         // Me seteo como nodo coordinador
-        NodeInitializer.getSimulationManager().setCoordinador();
+        NodeInitializer.getSimulationManager().setCoordinador(null);
     }
 
     @Override
@@ -88,11 +88,38 @@ public class ClusterAdministrationImpl implements ClusterAdministration {
                 Helper.GetNow(), 
                 MessageType.DISCONNECT, 
                 new DisconnectPayloadImpl(nodeId));
-        NodeInitializer.getCluster().getGroup().remove(nodeId);
-        NodeInitializer.getConnection().getGroupCommunication()
-            .send(message, nodeId);
+        
+        // Me seteo como nodo coordinador
+        // Reorganizo todo sin el nodo a desconectar
+        LOGGER.info("Reorganizo los agentes del nodo que se desconecto");
+        NodeInitializer.getSimulationManager().setCoordinador(nodeId);
+        
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e1) {
+            LOGGER.error(e1);
+        }
+        
+        if (!NodeInitializer.getNodeId().equals(nodeId))
+        {
+            try
+            {
+            NodeInitializer.getConnection().getGroupCommunication()
+                .send(message, nodeId);
+            }catch (RemoteException e) 
+            {
+                LOGGER.info("El nodo esta desconectado");
+            }
+        }
+        
         NodeInitializer.getConnection().getGroupCommunication()
             .broadcast(message);
+        
+        // Me mando el mensaje a mi mismo
+        NodeInitializer.getConnection()
+            .getGroupCommunication()
+            .getListener()
+            .onMessageArrive(message);
     }
 
     @Override

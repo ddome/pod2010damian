@@ -21,22 +21,23 @@ public class SimpleConsumer extends MarketAgent implements ResourceStock {
 	
 	@Override
 	public void run() {
-		while(!shouldFinish()) {
-			try {
-				if (amount.get() == 0) {
-					market().request(this, rate());
-				}
-				waitForResources();
-				waitForWork();
-			} catch (InterruptedException e) {
-				// this should happen when finishing or when new sotck arrives
-			}
-		}
+	while(!shouldFinish()) {
+	try {
+	if (amount.get() == 0) {
+	market().request(this, rate());
+	}
+	waitForResources();
+	waitForWork();
+	amount.set(amount.get() - rate());
+	} catch (InterruptedException e) {
+	// this should happen when finishing or when new sotck arrives
+	}
+	}
 	}
 	
 	private void waitForResources() throws InterruptedException {
 		while(amount.get() < rate()) {
-			Thread.sleep(1000 * 60);
+			Thread.sleep(1000 * 10);
 		}
 	}
 	

@@ -5,6 +5,7 @@ import java.rmi.RemoteException;
 import org.apache.log4j.Logger;
 
 import ar.edu.itba.pod.legajo47189.communication.Impl.NodeInitializer;
+import ar.edu.itba.pod.legajo47189.payload.Impl.NodeMarketDataRequestPayloadImpl;
 import ar.edu.itba.pod.legajo47189.payload.Impl.ResourceRequestPayloadImpl;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.MarketData;
@@ -13,6 +14,7 @@ import ar.edu.itba.pod.simul.communication.MessageType;
 import ar.edu.itba.pod.simul.communication.TransferHistory;
 import ar.edu.itba.pod.simul.communication.payload.ResourceRequestPayload;
 import ar.edu.itba.pod.simul.local.LocalMarket;
+import ar.edu.itba.pod.simul.market.MarketManager;
 import ar.edu.itba.pod.simul.market.Resource;
 import ar.edu.itba.pod.simul.market.ResourceStock;
 
@@ -24,30 +26,53 @@ public class MarketImpl extends LocalMarket {
     private final static Logger LOGGER = Logger.getLogger(MarketImpl.class);
     
     private Multiset<Resource> colaExterna;
+    private MarketManager manager;
+    private double total;
     
     public MarketImpl() {
         super();
         colaExterna = ConcurrentHashMultiset.create();
+        manager = new MarketManagerImpl(this);
     }
 
+    public MarketData basicMarketData()
+    {
+        return super.marketData();
+    }
+    
     @Override
     public MarketData marketData() {
 
-            double total = 0;
             MarketData myInfo = super.marketData();
-
-            //MANDO BROADCAST
+            
+            total = 0;
+            
+            Message message = new Message(NodeInitializer.getNodeId(),
+                    Helper.GetNow(), MessageType.NODE_MARKET_DATA_REQUEST,
+                    new NodeMarketDataRequestPayloadImpl());
+            
+            try {
+                NodeInitializer.getConnection().getGroupCommunication().broadcast(message);
+            } catch (RemoteException e) {
+                LOGGER.error(e);
+            }
+            
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                LOGGER.error(e);
+            }
             
             return new MarketData(
                     myInfo.getBuying(), 
                     myInfo.getSelling(), 
                     new TransferHistory(myInfo.getHistory().getHistoryItems(),
-                            myInfo.getHistory().getTransactionsPerSecond( ) + total));
+                            myInfo.getHistory().getTransactionsPerSecond() + total));
     }
 
     @Override
-    protected void matchBothEnds() {
-     
+     public void matchBothEnds() {
+             
         for (ResourceStock buyer : buying) {
             for (ResourceStock seller : selling) {
                     if (buyer.resource().equals(seller.resource())) {
@@ -57,27 +82,19 @@ public class MarketImpl extends LocalMarket {
             
             // Busco sobras de una transferencia anterior en caso de no alcanzar
             if (buying.count(buyer) != 0) {
+                
                 for (Resource externo : colaExterna) {
                         if (buyer.resource().equals(externo)) {
-                                LOGGER.info("ENCONTRADO EN LA COLA EXTERNA.");
-                                Integer resp = externalTransfer(buyer, externo);
-                                if (resp != 0) {
-                                        LOGGER.info("SE TRANSFIRIERON:" + buyer.name()
-                                                        + "<====" + resp + " de "
-                                                        + buyer.resource());
-                                }
+                                externalTransfer(buyer, externo);
                         }
                 }
-
                 // Si falta, le pregunto a la cluster (mando broadcast)
-                
                 if (buying.count(buyer) != 0) {
-                        LOGGER.info("Pido recursos a la cluster");
                         pedirRecurso(buyer.resource(), buying.count(buyer));
                 }
             }
         }
-    }
+    } 
     
     private void pedirRecurso(Resource resource, int amount)
     {
@@ -111,6 +128,7 @@ public class MarketImpl extends LocalMarket {
                                         buying.remove(buyer, transfer);
                                         continue;
                                 }
+                                myLogTransfer(externo, buyer, transfer);
                                 return transfer;
                         } else {
                                 // Compensation. restore what we took from the order!
@@ -120,6 +138,26 @@ public class MarketImpl extends LocalMarket {
                 // Reaching here mean we hit a race condition. Try again.
         }
     }
+    
+    public void myLogTransfer(Resource from, ResourceStock to, int amount) {
+        transactionCount++;
+        System.out.printf("SELL: from remote agent to %s --> %d of %s\n", to.name(), amount, from);
+    }
+    
+    public void addTransaction()
+    {
+       super.transactionCount++;
+    }
+    
+    public void run()
+    {
+        super.run();
+    }
+     
+    public void addTotal(double total)
+    {
+        this.total += total;
+    }
 
     public Multiset<Resource> getColaExterna() {
         return colaExterna;
@@ -127,5 +165,9 @@ public class MarketImpl extends LocalMarket {
     
     public Multiset<ResourceStock> getSelling() {
         return super.selling;
+    }
+
+    public MarketManager getManager() {
+        return manager;
     }    
 }

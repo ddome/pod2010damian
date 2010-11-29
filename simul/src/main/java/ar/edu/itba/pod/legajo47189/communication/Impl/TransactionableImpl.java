@@ -17,7 +17,7 @@ import ar.edu.itba.pod.simul.market.Resource;
 public class TransactionableImpl implements Transactionable {
 
     private final static Logger LOGGER = Logger.getLogger(TransactionableImpl.class);
-    public static final int TIMEOUT = 10000;
+    public static final int TIMEOUT = 5000;
     
     public enum TransactionableState {
         INITIAL,
@@ -76,7 +76,6 @@ public class TransactionableImpl implements Transactionable {
         
         remoteId = remoteNodeId;
         
-        LOGGER.info("Comienzo de transaccion");
         timer = new TransactionThread(timeout, this);
         timer.start();
         
@@ -88,7 +87,7 @@ public class TransactionableImpl implements Transactionable {
         if (current != TransactionableState.INITIAL)
         {
             try {
-                Thread.sleep(timeout);
+                Thread.sleep(10000);
             } catch (InterruptedException e) {
                 LOGGER.error(e);
             }
@@ -101,7 +100,6 @@ public class TransactionableImpl implements Transactionable {
         current = TransactionableState.READY;
         remoteId = remoteNodeId; 
         
-        LOGGER.info("Comienzo de transaccion");
         timer = new TransactionThread(timeout, this);
         timer.start();
     }
@@ -177,7 +175,7 @@ public class TransactionableImpl implements Transactionable {
 
     private void commit(String remoteId) throws RemoteException
     {
-        LOGGER.debug(remoteId);
+       
         ThreePhaseCommit from = null;
         try {
             from = NodeInitializer.getConnection().getThreePhaseCommit();
@@ -204,15 +202,11 @@ public class TransactionableImpl implements Transactionable {
             throw e;
         }
         
-        LOGGER.debug(from);
-        LOGGER.debug(to);
-        
         // Can commit
-        LOGGER.info("Se inicia el comiteo");
         if (from.canCommit(NodeInitializer.getNodeId(), TIMEOUT) 
                 && to.canCommit(NodeInitializer.getNodeId(), TIMEOUT))
         {
-            LOGGER.info("Can commit ok");
+         
             // Pre commit
             try{
                 to.preCommit(NodeInitializer.getNodeId());
@@ -226,7 +220,6 @@ public class TransactionableImpl implements Transactionable {
                 to.abort();
                 throw new RemoteException(e.getMessage());
             }
-            LOGGER.info("Pre commit ok");
             try{
                 to.doCommit(NodeInitializer.getNodeId());
                 from.doCommit(NodeInitializer.getNodeId());

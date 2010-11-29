@@ -11,12 +11,11 @@ import ar.edu.itba.pod.legajo47189.architecture.Node;
 import ar.edu.itba.pod.legajo47189.tools.Helper;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 import ar.edu.itba.pod.simul.communication.Message;
+import ar.edu.itba.pod.thread.CleanableThread;
 
-public class MessageSync extends Thread{
+public class MessageSync extends CleanableThread{
 
     private final static Logger LOGGER = Logger.getLogger(MessageSync.class);
-    
-    private boolean stopFlag = false;
     
     public void run()
     {        
@@ -25,7 +24,7 @@ public class MessageSync extends Thread{
         Iterable<Message> messages = null;
         List<Node> nodes = null;
         
-        while(!stopFlag)
+        while(!shouldFinish())
         {
             try {
                 Thread.sleep(1000);
@@ -72,12 +71,7 @@ public class MessageSync extends Thread{
         } while (group == null);
         return group.getNodes();
     }
-    
-    public void endThread()
-    {
-        stopFlag = true;
-    }
-    
+
     private List<Node> RandomSelection(List<Node> nodes) {
         List<Node> randomNodes = new ArrayList<Node>();
          

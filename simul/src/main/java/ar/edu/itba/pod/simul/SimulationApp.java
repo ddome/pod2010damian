@@ -62,7 +62,7 @@ public class SimulationApp implements Runnable {
 		                                        .build();
 		
 		Agent factory = SimpleConsumer.named("factory")
-		                                .consuming(10).of(steel)
+		                                .consuming(10).of(pigIron)
 		                                    .every(2, TimeUnit.DAYS)
 		                                        .build();
 
@@ -70,8 +70,8 @@ public class SimulationApp implements Runnable {
 		sim = new FeedbackSimulationManager(callback, sim);
 		sim.register(Market.class, market);
 		sim.addAgent(mine1);
-		sim.addAgent(mine2);
-		sim.addAgent(refinery);
+		//sim.addAgent(mine2);
+		//sim.addAgent(refinery);
 		sim.addAgent(factory);
 		
 		sim.start();

@@ -4,36 +4,36 @@ import ar.edu.itba.pod.simul.market.Market;
 import ar.edu.itba.pod.simul.market.MarketInspector;
 import ar.edu.itba.pod.simul.market.MarketManager;
 
+import com.google.common.base.Preconditions;
+
 public class MarketManagerImpl implements MarketManager {
 
-    private Market market;
-    
-    public MarketManagerImpl()
+    private MarketImpl market;
+
+    public MarketManagerImpl(MarketImpl market)
     {
-        market = new MarketImpl();
+        this.market = market;
     }
     
     @Override
     public MarketInspector inspector() {
-        // TODO Auto-generated method stub
-        return null;
+        return market;
     }
 
     @Override
     public Market market() {
+        Preconditions.checkState(market != null,"There is no active market to be retrieved");
         return market;
     }
 
     @Override
     public void shutdown() {
-        // TODO Auto-generated method stub
-
+        market.finish();
     }
 
     @Override
     public void start() {
-        // TODO Auto-generated method stub
-
+        market.start();
     }
 
 }

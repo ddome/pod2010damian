@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.log4j.Logger;
 
@@ -15,21 +16,29 @@ import ar.edu.itba.pod.simul.communication.ConnectionManager;
 import ar.edu.itba.pod.simul.communication.NodeAgentLoad;
 import ar.edu.itba.pod.simul.communication.SimulationCommunication;
 import ar.edu.itba.pod.simul.simulation.Agent;
+import ar.edu.itba.pod.simul.simulation.Simulation;
 
 public class SimulationCommunicationImpl implements SimulationCommunication {
 
     private final static Logger LOGGER = Logger.getLogger(SimulationCommunicationImpl.class);
-    SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
+    
+    private AtomicBoolean started = new AtomicBoolean();
+    public void start()
+    {
+        started.set(true);
+    }
     
     public SimulationCommunicationImpl() throws RemoteException
     {
         UnicastRemoteObject.exportObject(this, 0);
+        started.set(true);
     }
     
     
     @Override
     public NodeAgentLoad getMinimumNodeKnownLoad() throws RemoteException {
         NodeAgentLoad node = null;
+        SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         if (NodeInitializer.getCoordinator().equals(NodeInitializer.getNodeId()))
         {
             node = getMinLoad(manager.getLoads());
@@ -40,7 +49,7 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
     @Override
     public Collection<AgentDescriptor> migrateAgents(int numberOfAgents)
             throws RemoteException {
-
+        SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         List<AgentDescriptor> ret = new ArrayList<AgentDescriptor>();
         List<Agent> toRemove = new ArrayList<Agent>();
        
@@ -64,7 +73,7 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
         {
             manager.removeAgent(agent);
         }        
-        LOGGER.info("Se removieron " + toRemove.size() + "nodos");
+        LOGGER.info("Se removieron " + toRemove.size() + " agentes");
         NodeAgentLoad myLoad = manager.getLoads()
             .put(NodeInitializer.getNodeId(), 
                     new NodeAgentLoad(NodeInitializer.getNodeId(), actuales.size()));
@@ -75,7 +84,7 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
 
     @Override
     public void nodeLoadModified(NodeAgentLoad newLoad) throws RemoteException {
-        
+        SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         if (NodeInitializer.getCoordinator().equals(NodeInitializer.getNodeId()))
         {
             LOGGER.info("El nodo " + newLoad.getNodeId() + " me informo de una nueva carga " + newLoad.getNumberOfAgents() );
@@ -85,21 +94,22 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
 
     @Override
     public void startAgent(AgentDescriptor descriptor) throws RemoteException {
-        
+        SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         LOGGER.info("Comienzo un agente en este nodo");
         Agent agent = descriptor.build();
+        Simulation simulation = NodeInitializer.getSimulationManager().getSimulation();
+        agent.onBind(simulation);
         manager.addToMayAgents(agent);
         
         int number = manager.getLoads().get(NodeInitializer.getNodeId()).getNumberOfAgents() + 1;
         NodeAgentLoad newLoad = new NodeAgentLoad(NodeInitializer.getNodeId(), number);
         avisarNuevaCarga(newLoad);
-        
-        // Arranco el agente
-        agent.start();
+       // agent.start();
     }
     
     private void avisarNuevaCarga(NodeAgentLoad load) 
     {
+        SimulationManagerImpl manager = (SimulationManagerImpl)NodeInitializer.getSimulationManager();
         LOGGER.info("Informo al coordinador que mi nueva carga es " + load.getNumberOfAgents());
         // Si no soy el coordinador, tengo que avisar al coordinador que cambie mi carga
         if (!NodeInitializer.getCoordinator().equals(NodeInitializer.getNodeId()))
@@ -111,8 +121,13 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
                 connection.getSimulationCommunication().nodeLoadModified(load);
             } catch(Exception e)
             {
+                try {
+                    NodeInitializer.getConnection().getClusterAdmimnistration().disconnectFromGroup(NodeInitializer.getCoordinator());
+                } catch (RemoteException e1) {
+                    LOGGER.error(e1);
+                }
                 LOGGER.error("No se encontro la conexion al nodo coordinador");
-                manager.setCoordinador();
+                manager.setCoordinador(null);
                 LOGGER.info("Se establece al nodo actual como coordinador");
                 manager.getLoads().put(NodeInitializer.getNodeId(), load);
             }
@@ -131,7 +146,6 @@ public class SimulationCommunicationImpl implements SimulationCommunication {
         {
             if (load.getNumberOfAgents() < min)
             {
-                LOGGER.debug("lalala");
                 min = load.getNumberOfAgents();
                 nodeLoad = load;
             }
