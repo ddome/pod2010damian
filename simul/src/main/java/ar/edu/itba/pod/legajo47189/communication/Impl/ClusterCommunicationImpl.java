@@ -13,6 +13,7 @@ import ar.edu.itba.pod.simul.communication.ClusterCommunication;
 import ar.edu.itba.pod.simul.communication.ConnectionManager;
 import ar.edu.itba.pod.simul.communication.Message;
 import ar.edu.itba.pod.simul.communication.MessageListener;
+import ar.edu.itba.pod.simul.communication.MessageType;
 
 public class ClusterCommunicationImpl extends Thread implements ClusterCommunication {
 
@@ -90,7 +91,12 @@ public class ClusterCommunicationImpl extends Thread implements ClusterCommunica
                 NodeInitializer.getConnection().getConnectionManager(nodeId);
             ret = manager.getGroupCommunication().getListener().onMessageArrive(message);
         } catch (RemoteException e) {
-            LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido.");      
+            LOGGER.error("El mensaje " + message.getNodeId() + " al nodo " + nodeId + "no pudo ser transmitido.");
+            
+            if (!message.getType().equals(MessageType.DISCONNECT)){
+            	NodeInitializer.getCluster().getGroup().remove(nodeId);
+            }
+            
             throw e;
         }
         //LOGGER.info("Mensaje " + message.getNodeId() + " al nodo " + nodeId + " enviado correctamente");

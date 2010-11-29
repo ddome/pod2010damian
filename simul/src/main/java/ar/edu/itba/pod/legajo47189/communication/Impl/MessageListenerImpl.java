@@ -3,6 +3,7 @@ package ar.edu.itba.pod.legajo47189.communication.Impl;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -139,12 +140,19 @@ public class MessageListenerImpl extends CleanableThread implements MessageListe
     public List<Message> except(List<Message> messages, String nodeId)
     {
         List<Message> ret = new ArrayList<Message>();
+        
+        try
+        {
         for (Message message : messages)
         {
             if (!message.getNodeId().equals(nodeId))
             {
                 ret.add(message);
             }
+        }
+        } catch(ConcurrentModificationException e)
+        {
+        	
         }
         return ret;
     }

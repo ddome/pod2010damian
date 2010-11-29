@@ -48,7 +48,6 @@ public class TransactionThread extends Thread {
     private void timeout() {
         
         try {
-            LOGGER.info("Se llego al timeout. Se cancela la transaccion");
             transacion.rollback();
             setFinished(true);
         } catch (RemoteException e) {

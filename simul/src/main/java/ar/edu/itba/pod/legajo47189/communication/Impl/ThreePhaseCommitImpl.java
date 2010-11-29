@@ -16,7 +16,7 @@ import ar.edu.itba.pod.simul.communication.payload.Payload;
 public class ThreePhaseCommitImpl implements ThreePhaseCommit {
     
     
-    private final static Logger LOGGER = Logger.getLogger(ThreePhaseCommitImpl.class);
+    //private final static Logger LOGGER = Logger.getLogger(ThreePhaseCommitImpl.class);
     
     private TransactionableImpl transaction;
     private ThreePhaseThread timer;
@@ -51,6 +51,8 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
             // TODO: Tirar todo para atras
             changeState(ThreePhaseCommitState.INITIAL);
             break;
+            default:
+            	changeState(ThreePhaseCommitState.INITIAL);
         }
     }
 
@@ -105,6 +107,7 @@ public class ThreePhaseCommitImpl implements ThreePhaseCommit {
             abort();
             break;
         default:
+        	abort();
             break;
         }
     }

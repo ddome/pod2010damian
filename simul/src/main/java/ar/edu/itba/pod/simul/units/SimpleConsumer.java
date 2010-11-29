@@ -37,7 +37,7 @@ public class SimpleConsumer extends MarketAgent implements ResourceStock {
 	
 	private void waitForResources() throws InterruptedException {
 		while(amount.get() < rate()) {
-			Thread.sleep(1000 * 10);
+			Thread.sleep(1000 * 60);
 		}
 	}
 	
